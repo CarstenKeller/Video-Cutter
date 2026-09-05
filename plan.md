@@ -20,20 +20,31 @@ Ob Media3 `Transformer`/`Composition` echte Überblend-Übergänge (Crossfade et
 
 ## Phase 1 – MVP (Start)
 
-- [ ] Projekt-Grundgerüst (Gradle, Compose, Media3-Dependencies, Manifest, Berechtigungen)
-- [ ] Video-Import über System-Picker (`ActivityResultContracts.OpenDocument`/`GetContent`, mp4)
-- [ ] Vorschau-Player (ExoPlayer) mit Play/Pause, Zeitanzeige, Scrubbing
-- [ ] Einfache Single-Track-Timeline:
-  - Clip(s) als Blöcke mit Thumbnail-Streifen
-  - Trimmen (Start-/End-Handle ziehen)
-  - Schneiden/Split am Playhead
+> Status: Code für alle unten stehenden Punkte ist geschrieben und gepusht,
+> aber **nicht kompiliert/getestet** (Sandbox ohne Android-SDK/Netzwerk).
+> Häkchen bedeuten "implementiert", nicht "verifiziert". Erster echter Test
+> erfolgt beim Öffnen in Android Studio.
+
+- [x] Projekt-Grundgerüst (Gradle-Wrapper, Compose, Media3-Dependencies, Manifest)
+- [x] Video-Import über System-Picker (`ActivityResultContracts.PickVisualMedia`, videoOnly)
+- [x] Vorschau-Player (ExoPlayer/PlayerView) mit Play/Pause, Zeitanzeige, Scrubbing (Standard-Controller)
+- [x] Einfache Single-Track-Timeline:
+  - Clip(s) als Blöcke, proportional zur Dauer
+  - Trimmen über Schieberegler (Material3 RangeSlider)
+  - Schneiden/Split an der aktuellen Player-Position
   - Clip löschen
-  - Reihenfolge der Clips per Drag ändern (Abschnitte verschieben)
-- [ ] Export-Dialog:
-  - Auflösung wählen (Original, 1080p, 720p, 480p)
+  - Reihenfolge der Clips ändern (aktuell über Pfeiltasten am ausgewählten
+    Clip statt Drag-Geste – siehe Hinweis unten)
+- [x] Export-Dialog:
+  - Auflösung wählen (Original, 4K, 1080p, 720p, 480p)
   - Kompression/Qualität wählen (Original, Hoch, Mittel, Niedrig → Bitrate-Presets)
-- [ ] Speichern des Exports in MediaStore-Album „Video Cutter" (Album-Erstellung falls nicht vorhanden)
-- [ ] Export-Fortschrittsanzeige (Progress, Erfolg/Fehler)
+- [x] Speichern des Exports in MediaStore-Album „Video Cutter" (Album-Erstellung automatisch durch MediaStore beim ersten Insert)
+- [x] Export-Fortschrittsanzeige (Progress-Overlay, Erfolg/Fehler als Toast)
+
+**Bewusste Vereinfachung:** Echtes Drag-and-Drop zum Verschieben von Clips
+wurde durch Pfeiltasten (◄/►) ersetzt. Gesten-Code lässt sich ohne reales
+Gerät kaum zuverlässig blind schreiben; sobald der Build läuft, kann Drag
+als Verbesserung nachgezogen werden, falls gewünscht.
 
 ## Phase 2 – Mehrere Videospuren
 
