@@ -35,6 +35,24 @@ Netzwerkzugriff auf Googles Maven-Repository erstellt. Das heißt:
 Bitte beim ersten Build in Android Studio kurz Rückmeldung geben, welche
 Fehler ggf. auftreten – dann korrigiere ich gezielt.
 
+## APK herunterladen (automatischer CI-Build)
+
+Da diese Sandbox selbst nicht bauen kann, übernimmt das GitHub-Actions-
+Workflow `.github/workflows/build-apk.yml` die echte Kompilierung: Bei jedem
+Push auf einen `claude/**`-Branch baut GitHub einen Debug-APK und veröffentlicht
+ihn als Release-Asset.
+
+- Datei- und Tag-Name enthalten immer den kurzen Commit-Hash
+  (z. B. `video-cutter-a1b2c3d-debug.apk`, Release-Tag `build-a1b2c3d`) –
+  dadurch ist jede Version über eine eigene URL erreichbar und der Browser
+  kann keine veraltete, gecachte APK-Datei ausliefern.
+- Alle Releases: https://github.com/CarstenKeller/Video-Cutter/releases
+- Alle Workflow-Läufe (Build-Log bei Fehlern):
+  https://github.com/CarstenKeller/Video-Cutter/actions/workflows/build-apk.yml
+- Vor der Installation muss auf dem Smartphone „Installation aus unbekannten
+  Quellen" für den verwendeten Browser/Dateimanager erlaubt werden, da die
+  APK nicht aus dem Play Store kommt.
+
 ## Aktueller Funktionsstand (Phase 1 / MVP)
 
 - Video über den System-Picker importieren
