@@ -1,6 +1,9 @@
 package com.carstenkeller.videocutter.ui.components
 
+import android.content.Context
+import android.media.MediaMetadataRetriever
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +12,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,16 +27,25 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.carstenkeller.videocutter.timeline.VideoClip
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+private const val THUMBNAILS_PER_CLIP = 6
 
 @Composable
 fun TimelineView(
@@ -57,6 +71,7 @@ fun TimelineView(
                 val durationSeconds = clip.durationUs / 1_000_000f
                 val widthDp = (durationSeconds * 60f).coerceAtLeast(56f).dp
                 ClipBlock(
+                    clip = clip,
                     index = index,
                     isSelected = clip.id == selectedClipId,
                     widthDp = widthDp,
@@ -78,6 +93,7 @@ fun TimelineView(
 
 @Composable
 private fun ClipBlock(
+    clip: VideoClip,
     index: Int,
     isSelected: Boolean,
     widthDp: Dp,
@@ -87,18 +103,14 @@ private fun ClipBlock(
     onMoveLeft: () -> Unit,
     onMoveRight: () -> Unit,
 ) {
+    val thumbnails = rememberClipThumbnails(clip)
+
     Box(
         modifier = Modifier
             .width(widthDp)
             .height(72.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (isSelected) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-            )
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(
                 BorderStroke(
                     width = if (isSelected) 2.dp else 1.dp,
@@ -109,19 +121,77 @@ private fun ClipBlock(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        if (isSelected) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onMoveLeft, enabled = canMoveLeft) {
-                    Text("‹", style = MaterialTheme.typography.titleLarge)
-                }
-                Text("Clip ${index + 1}", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                IconButton(onClick = onMoveRight, enabled = canMoveRight) {
-                    Text("›", style = MaterialTheme.typography.titleLarge)
+        if (thumbnails.isNotEmpty()) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                thumbnails.forEach { bitmap ->
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = null,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        contentScale = ContentScale.Crop,
+                    )
                 }
             }
-        } else {
+        }
+
+        if (isSelected) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.45f)),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onMoveLeft, enabled = canMoveLeft) {
+                    Text("‹", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                }
+                Text(
+                    "Clip ${index + 1}",
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onMoveRight, enabled = canMoveRight) {
+                    Text("›", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                }
+            }
+        } else if (thumbnails.isEmpty()) {
             Text("Clip ${index + 1}", maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+    }
+}
+
+/**
+ * Lädt eine feste Anzahl Vorschaubilder für einen Clip. Wird bewusst nur bei
+ * neuer Clip-Id neu berechnet (nicht bei jeder Trimm-Änderung), damit das
+ * Ziehen am Trimm-Regler nicht durch wiederholte Frame-Extraktion ruckelt.
+ */
+@Composable
+private fun rememberClipThumbnails(clip: VideoClip): List<ImageBitmap> {
+    val context = LocalContext.current
+    val state = produceState(initialValue = emptyList(), clip.id) {
+        value = withContext(Dispatchers.IO) {
+            extractThumbnails(context, clip, THUMBNAILS_PER_CLIP)
+        }
+    }
+    return state.value
+}
+
+private fun extractThumbnails(context: Context, clip: VideoClip, count: Int): List<ImageBitmap> {
+    if (count <= 0) return emptyList()
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(context, clip.sourceUri)
+        val rangeUs = (clip.trimEndUs - clip.trimStartUs).coerceAtLeast(1)
+        (0 until count).mapNotNull { i ->
+            val timeUs = clip.trimStartUs + (rangeUs * i / count)
+            retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?.asImageBitmap()
+        }
+    } catch (_: Exception) {
+        emptyList()
+    } finally {
+        retriever.release()
     }
 }
 
