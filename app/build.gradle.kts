@@ -16,7 +16,24 @@ android {
         versionName = "0.1.0-mvp"
     }
 
+    // Fester, ins Repo eingecheckter Debug-Keystore statt des von AGP pro
+    // Maschine automatisch generierten ~/.android/debug.keystore. Ohne das
+    // würde jeder CI-Build (frischer Runner) mit einem anderen Schlüssel
+    // signiert, und Android verweigert dann die Installation einer neuen
+    // Version über eine bereits installierte ("App nicht installiert").
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

@@ -52,6 +52,16 @@ ihn als Release-Asset.
 - Vor der Installation muss auf dem Smartphone „Installation aus unbekannten
   Quellen" für den verwendeten Browser/Dateimanager erlaubt werden, da die
   APK nicht aus dem Play Store kommt.
+- Alle Debug-Builds werden mit dem festen, im Repo liegenden Keystore
+  `keystore/debug.keystore` signiert (siehe `app/build.gradle.kts`), nicht
+  mit dem von Android Studio/AGP pro Maschine automatisch generierten
+  `~/.android/debug.keystore`. Ohne das hätte jeder CI-Lauf (frischer
+  GitHub-Runner) eine andere Signatur erzeugt, und Android hätte jede neue
+  Version mit „App nicht installiert" abgelehnt, sobald schon eine ältere
+  Version installiert war. Bei einem Wechsel von einer Version, die noch
+  mit einem der alten, automatisch generierten Schlüssel gebaut wurde,
+  muss die App einmalig deinstalliert werden – danach installieren sich
+  alle folgenden Debug-Builds als normales Update.
 
 ## Aktueller Funktionsstand (Phase 1 / MVP)
 
