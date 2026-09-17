@@ -144,3 +144,15 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
 - Auf echtem Gerät bestätigt: Import, Trimmen, Schneiden, Speichern
   funktionieren. Nav-Bar-Überlappung behoben, Timeline zeigt echte
   Video-Thumbnails statt Platzhalter.
+- Kamera-Aufnahme + Kamerawechsel auf echtem Gerät bestätigt funktionsfähig.
+- Performance-Fix: Der Vorschau-Player wurde bisher bei jeder einzelnen
+  Fingerbewegung auf dem Trimm-Regler komplett neu aufgebaut
+  (`setMediaItems`+`prepare()`), was die App spürbar träge machte. Jetzt
+  entprellt (debounced), Rebuild erst nach kurzer Pause.
+- UI: Funktionsbuttons (Schneiden/Löschen/Clip/Aufnehmen/Exportieren,
+  Kamera-Steuerung, Clip verschieben) sind jetzt Icons mit Tooltip statt
+  ausgeschriebenem Text.
+- CI-Fix: Die Action `android-actions/setup-android@v3` versuchte ein von
+  Google inzwischen entferntes Legacy-Paket (`tools`) zu installieren und
+  brach die Pipeline. Ersatzlos entfernt, da der GitHub-Runner bereits ein
+  vollständiges Android SDK mitbringt.

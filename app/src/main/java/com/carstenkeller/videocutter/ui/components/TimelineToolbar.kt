@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,13 +29,13 @@ fun TimelineToolbar(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        OutlinedButton(onClick = onSplit) { Text("Schneiden") }
-        OutlinedButton(onClick = onDelete) { Text("Löschen") }
-        OutlinedButton(onClick = onAddClip) { Text("+ Clip") }
-        OutlinedButton(onClick = onRecordClip) { Text("+ Aufnehmen") }
-        Button(onClick = onExport, enabled = exportEnabled) { Text("Exportieren") }
+        IconActionButton(icon = Icons.Filled.ContentCut, label = "Schneiden", onClick = onSplit)
+        IconActionButton(icon = Icons.Filled.Delete, label = "Löschen", onClick = onDelete)
+        IconActionButton(icon = Icons.Filled.VideoLibrary, label = "Clip hinzufügen", onClick = onAddClip)
+        IconActionButton(icon = Icons.Filled.Videocam, label = "Aufnehmen", onClick = onRecordClip)
+        IconActionButton(icon = Icons.Filled.Save, label = "Exportieren", onClick = onExport, enabled = exportEnabled)
     }
 }

@@ -28,6 +28,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.carstenkeller.videocutter.media.MediaDurationReader
+import com.carstenkeller.videocutter.ui.components.IconActionButton
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -160,12 +164,13 @@ fun CameraRecorderScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
 
-        TextButton(
+        IconActionButton(
+            icon = Icons.Filled.Close,
+            label = "Abbrechen",
             onClick = onCancel,
-            modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
-        ) {
-            Text("Abbrechen", color = Color.White)
-        }
+            modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+            tint = Color.White,
+        )
 
         if (isRecording) {
             Text(
@@ -183,20 +188,19 @@ fun CameraRecorderScreen(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(
+            IconActionButton(
+                icon = Icons.Filled.FlipCameraAndroid,
+                label = "Kamera wechseln",
                 onClick = {
-                    if (!isRecording) {
-                        lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
-                            CameraSelector.LENS_FACING_BACK
-                        } else {
-                            CameraSelector.LENS_FACING_FRONT
-                        }
+                    lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
+                        CameraSelector.LENS_FACING_BACK
+                    } else {
+                        CameraSelector.LENS_FACING_FRONT
                     }
                 },
                 enabled = !isRecording,
-            ) {
-                Text("Kamera wechseln", color = Color.White)
-            }
+                tint = Color.White,
+            )
 
             Box(
                 modifier = Modifier

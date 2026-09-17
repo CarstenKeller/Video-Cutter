@@ -20,7 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
@@ -141,9 +143,13 @@ private fun ClipBlock(
                     .background(Color.Black.copy(alpha = 0.45f)),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onMoveLeft, enabled = canMoveLeft) {
-                    Text("‹", style = MaterialTheme.typography.titleLarge, color = Color.White)
-                }
+                IconActionButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    label = "Nach links verschieben",
+                    onClick = onMoveLeft,
+                    enabled = canMoveLeft,
+                    tint = Color.White,
+                )
                 Text(
                     "Clip ${index + 1}",
                     color = Color.White,
@@ -151,9 +157,13 @@ private fun ClipBlock(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = onMoveRight, enabled = canMoveRight) {
-                    Text("›", style = MaterialTheme.typography.titleLarge, color = Color.White)
-                }
+                IconActionButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowForward,
+                    label = "Nach rechts verschieben",
+                    onClick = onMoveRight,
+                    enabled = canMoveRight,
+                    tint = Color.White,
+                )
             }
         } else if (thumbnails.isEmpty()) {
             Text("Clip ${index + 1}", maxLines = 1, overflow = TextOverflow.Ellipsis)

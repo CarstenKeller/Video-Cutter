@@ -29,6 +29,10 @@ import com.carstenkeller.videocutter.ui.components.PlayerPreview
 import com.carstenkeller.videocutter.ui.components.TimelineToolbar
 import com.carstenkeller.videocutter.ui.components.TimelineView
 import com.carstenkeller.videocutter.ui.components.rememberVideoPickerLauncher
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -46,21 +50,31 @@ fun EditorScreen(
         onDispose { player.release() }
     }
 
-    LaunchedEffect(state.clips) {
-        if (state.clips.isEmpty()) return@LaunchedEffect
-        val mediaItems = state.clips.map { clip ->
-            MediaItem.Builder()
-                .setUri(clip.sourceUri)
-                .setClippingConfiguration(
-                    MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(clip.trimStartUs / 1000)
-                        .setEndPositionMs(clip.trimEndUs / 1000)
-                        .build(),
-                )
-                .build()
+    // Debounced statt bei jedem einzelnen Trimm-Regler-Tick: sonst baut jede
+    // Fingerbewegung auf dem RangeSlider die komplette Playlist neu auf
+    // (setMediaItems + prepare), was die App spürbar träge macht.
+    LaunchedEffect(timelineViewModel) {
+        var pendingRebuild: Job? = null
+        timelineViewModel.state.collect { current ->
+            pendingRebuild?.cancel()
+            pendingRebuild = launch {
+                delay(250)
+                if (current.clips.isEmpty()) return@launch
+                val mediaItems = current.clips.map { clip ->
+                    MediaItem.Builder()
+                        .setUri(clip.sourceUri)
+                        .setClippingConfiguration(
+                            MediaItem.ClippingConfiguration.Builder()
+                                .setStartPositionMs(clip.trimStartUs / 1000)
+                                .setEndPositionMs(clip.trimEndUs / 1000)
+                                .build(),
+                        )
+                        .build()
+                }
+                player.setMediaItems(mediaItems)
+                player.prepare()
+            }
         }
-        player.setMediaItems(mediaItems)
-        player.prepare()
     }
 
     var showExportDialog by remember { mutableStateOf(false) }
