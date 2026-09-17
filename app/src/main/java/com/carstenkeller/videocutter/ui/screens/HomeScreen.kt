@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -15,7 +16,10 @@ import androidx.compose.ui.unit.dp
 import com.carstenkeller.videocutter.ui.components.rememberVideoPickerLauncher
 
 @Composable
-fun HomeScreen(onVideoImported: (Uri, Long) -> Unit) {
+fun HomeScreen(
+    onVideoImported: (Uri, Long) -> Unit,
+    onRecordRequested: () -> Unit,
+) {
     val launchPicker = rememberVideoPickerLauncher(onPicked = onVideoImported)
 
     Column(
@@ -26,11 +30,14 @@ fun HomeScreen(onVideoImported: (Uri, Long) -> Unit) {
     ) {
         Text(text = "Video Cutter", style = MaterialTheme.typography.headlineMedium)
         Text(
-            text = "Wähle ein Video, um mit dem Schnitt zu beginnen.",
+            text = "Wähle ein Video oder nimm eines mit der Kamera auf, um mit dem Schnitt zu beginnen.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Button(onClick = launchPicker) {
             Text("Video auswählen")
+        }
+        OutlinedButton(onClick = onRecordRequested) {
+            Text("Video aufnehmen")
         }
     }
 }

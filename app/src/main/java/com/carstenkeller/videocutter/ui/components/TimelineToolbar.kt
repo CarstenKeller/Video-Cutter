@@ -19,6 +19,7 @@ fun TimelineToolbar(
     onSplit: () -> Unit,
     onDelete: () -> Unit,
     onAddClip: () -> Unit,
+    onRecordClip: () -> Unit,
     onExport: () -> Unit,
 ) {
     Row(
@@ -31,6 +32,7 @@ fun TimelineToolbar(
         OutlinedButton(onClick = onSplit) { Text("Schneiden") }
         OutlinedButton(onClick = onDelete) { Text("Löschen") }
         OutlinedButton(onClick = onAddClip) { Text("+ Clip") }
+        OutlinedButton(onClick = onRecordClip) { Text("+ Aufnehmen") }
         Button(onClick = onExport, enabled = exportEnabled) { Text("Exportieren") }
     }
 }

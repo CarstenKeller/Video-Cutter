@@ -32,7 +32,10 @@ import com.carstenkeller.videocutter.ui.components.rememberVideoPickerLauncher
 
 @OptIn(UnstableApi::class)
 @Composable
-fun EditorScreen(timelineViewModel: TimelineViewModel) {
+fun EditorScreen(
+    timelineViewModel: TimelineViewModel,
+    onRecordRequested: () -> Unit,
+) {
     val context = LocalContext.current
     val state by timelineViewModel.state.collectAsState()
     val exportViewModel: ExportViewModel = viewModel()
@@ -79,6 +82,7 @@ fun EditorScreen(timelineViewModel: TimelineViewModel) {
                 },
                 onDelete = { state.selectedClipId?.let(timelineViewModel::deleteClip) },
                 onAddClip = addClipLauncher,
+                onRecordClip = onRecordRequested,
                 onExport = { showExportDialog = true },
             )
 

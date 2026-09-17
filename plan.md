@@ -95,13 +95,17 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 
 > Nutzerwunsch: Videos direkt in der App aufnehmen können, wie bei Camtasia.
 > Geklärt: Kamera-Aufnahme (Webcam-Stil, keine Bildschirmaufnahme).
+>
+> Status: Code geschrieben und gepusht, noch nicht auf echtem Gerät
+> getestet (CI kann keine Kamera-Hardware simulieren, nur Kompilierung
+> prüfen).
 
-- [ ] Neuer Aufnahme-Screen mit Live-Kameravorschau (CameraX `PreviewView`)
-- [ ] Start/Stopp-Aufnahme, Kamera-Wechsel (vorne/hinten), Aufnahmedauer-Anzeige
-- [ ] Laufzeit-Berechtigungen für Kamera + Mikrofon
-- [ ] Aufgenommenes Video landet als neuer Clip in der Timeline (gleicher
+- [x] Neuer Aufnahme-Screen mit Live-Kameravorschau (CameraX `PreviewView`)
+- [x] Start/Stopp-Aufnahme, Kamera-Wechsel (vorne/hinten), Aufnahmedauer-Anzeige
+- [x] Laufzeit-Berechtigungen für Kamera + Mikrofon
+- [x] Aufgenommenes Video landet als neuer Clip in der Timeline (gleicher
       Weg wie importierte Videos)
-- [ ] Zugriff sowohl von der Startseite ("Video aufnehmen") als auch aus dem
+- [x] Zugriff sowohl von der Startseite ("Video aufnehmen") als auch aus dem
       Editor heraus ("+ Aufnehmen" neben "+ Clip")
 
 ## Phase 8 – Hintergrund entfernen/ersetzen (Camtasia-artig, Teil 2)

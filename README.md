@@ -75,5 +75,18 @@ ihn als Release-Asset.
 - Speichern im Album „Video Cutter" (`Filme/Video Cutter`), Album wird bei
   Bedarf automatisch angelegt
 
-Alles Weitere (mehrere Videospuren, Audiospur, Bilder, Übergänge, Undo/Redo
-etc.) folgt gemäß `plan.md`.
+## Phase 7: Kamera-Aufnahme
+
+- Video direkt in der App mit der Gerätekamera aufnehmen (CameraX),
+  Kamera-Wechsel vorne/hinten, Aufnahmedauer-Anzeige
+- Aufgenommenes Video landet wie ein importiertes Video als neuer Clip in
+  der Timeline
+- Erreichbar über „Video aufnehmen" auf der Startseite oder „+ Aufnehmen"
+  im Editor
+- Benötigt Kamera- und Mikrofon-Berechtigung (Laufzeit-Abfrage)
+- **Nicht verifiziert:** CameraX-Aufnahme lässt sich nicht per CI testen
+  (kein Kamerahardware auf dem Build-Runner) – nur ein echter Gerätetest
+  zeigt, ob Aufnahme/Vorschau/Speichern zuverlässig funktionieren.
+
+Alles Weitere (mehrere Videospuren, Audiospur, Bilder, Übergänge,
+Hintergrund-Ersatz, Undo/Redo etc.) folgt gemäß `plan.md`.
