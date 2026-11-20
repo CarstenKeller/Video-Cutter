@@ -56,7 +56,14 @@ class TimelineViewModel : ViewModel() {
             if (splitAtSource <= clip.trimStartUs + minDuration || splitAtSource >= clip.trimEndUs - minDuration) {
                 return@update current
             }
-            val firstHalf = clip.copy(trimEndUs = splitAtSource)
+            // Beide Hälften bekommen eine neue Id (nicht nur secondHalf) - die
+            // Timeline-UI cacht pro Clip-Id erzeugte Thumbnails, keyed nur auf
+            // die Id, damit das Ziehen am Trimm-Griff nicht laufend neue Frames
+            // extrahiert. Würde firstHalf die alte Id behalten, zeigte sie
+            // weiterhin die (jetzt falschen) Thumbnails des ungeschnittenen
+            // Original-Clips, da der Cache nicht wüsste, dass sich trimEndUs
+            // geändert hat.
+            val firstHalf = clip.copy(id = UUID.randomUUID().toString(), trimEndUs = splitAtSource)
             val secondHalf = clip.copy(id = UUID.randomUUID().toString(), trimStartUs = splitAtSource)
             val newClips = current.clips.toMutableList().apply {
                 removeAt(index)

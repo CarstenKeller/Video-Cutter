@@ -150,6 +150,13 @@ ihn als Release-Asset.
   optisch an Ort und Stelle (Row-Layout schrumpft Elemente nur von
   rechts sichtbar) – die Trimm-Geste selbst funktioniert trotzdem
   korrekt, nur die visuelle Rückmeldung ist nicht pixelgenau.
+- Nach einem Schnitt zeigen beide entstandenen Clips zuverlässig
+  unterschiedliche Vorschaubilder (Bug behoben: nur eine Hälfte bekam
+  beim Schneiden eine neue Clip-Id, wodurch Thumbnails teils veraltet
+  oder – bei fehlgeschlagener Frame-Extraktion – als ein einziges, über
+  die ganze Blockbreite gestrecktes Bild angezeigt wurden).
+- Trimm-Griffe nutzen jetzt die offizielle `Modifier.draggable()`-API
+  statt handgeschriebener Gesten-Erkennung, Treffer-Bereich vergrößert.
 - **Nicht verifiziert:** Die Geste-Ebenen (Tippen, Trimm-Griffe,
   Verschieben-Pfeile) sind nach gängigen Compose-Mustern geschichtet,
   aber nicht auf einem echten Gerät getestet.

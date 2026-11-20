@@ -322,3 +322,29 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   deutlich auffälliger gemacht (4dp, weiß mit schwarzer Außenlinie statt
   2dp Primärfarbe) und die Zeitanzeige über der Zeitleiste vergrößert
   ("Position: mm:ss / mm:ss", `titleMedium` statt `labelLarge`).
+- **Weitere Fixes nach erneutem Gerätetest:**
+  - **Thumbnail-Bug nach Schnitt behoben:** Nur `secondHalf` bekam beim
+    Schneiden eine neue Clip-Id, `firstHalf` behielt die alte - die
+    Timeline cacht Thumbnails pro Clip-Id (bewusst, damit Trimm-Ziehen
+    nicht laufend neu extrahiert), wodurch `firstHalf` zufällig noch die
+    (jetzt teils falschen) alten Thumbnails zeigte, während die frische
+    Extraktion für `secondHalf` bei vereinzelten fehlschlagenden Frames
+    (`MediaMetadataRetriever.getFrameAtTime` kann `null` liefern) nur 1
+    Bild zurückgab, das dann über die volle Blockbreite gestreckt wurde
+    ("absurde Vergrößerung"). Behoben: `splitClip` gibt jetzt *beiden*
+    Hälften eine neue Id; Thumbnail-Liste hat immer feste Länge mit
+    Platzhalter-Kacheln für fehlgeschlagene Frames (kein Strecken mehr
+    möglich) plus ein Fallback auf `OPTION_CLOSEST`, falls
+    `OPTION_CLOSEST_SYNC` `null` liefert.
+  - **Trimm-Griffe auf `Modifier.draggable()` umgestellt:** Die
+    handgeschriebene `detectDragGestures`-Logik wurde durch die
+    offizielle, dafür vorgesehene Compose-API ersetzt (robuster bei
+    Gesten-Konflikten mit dem Tipp-zum-Springen-Handler auf demselben
+    Block) und der Treffer-Bereich von 14dp auf 20dp vergrößert.
+  - Tipp-zum-Springen nutzt jetzt den benannten `onTap`-Parameter statt
+    eines positionellen Trailing-Lambdas (Eindeutigkeit).
+  - **Nicht verifiziert:** Ob das die berichtete Unzuverlässigkeit beim
+    Springen und das komplett nicht funktionierende Trimmen tatsächlich
+    behebt, muss der nächste Gerätetest zeigen - ohne Laufzeitzugriff auf
+    ein echtes Gerät lässt sich Gesten-Verhalten nicht abschließend
+    verifizieren.

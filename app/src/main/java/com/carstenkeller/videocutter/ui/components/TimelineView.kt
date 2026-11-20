@@ -6,8 +6,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,7 +53,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val THUMBNAILS_PER_CLIP = 6
-private const val TRIM_HANDLE_WIDTH_DP = 14
+private const val TRIM_HANDLE_WIDTH_DP = 20
 
 /**
  * Zeitleiste. Jeder Block ist proportional zur *getrimmten* Clip-Länge breit
@@ -154,19 +156,30 @@ private fun ClipBlock(
                 RoundedCornerShape(8.dp),
             )
             .pointerInput(index) {
-                detectTapGestures { offset -> onSeek((offset.x / size.width.toFloat()).coerceIn(0f, 1f)) }
+                detectTapGestures(
+                    onTap = { offset -> onSeek((offset.x / size.width.toFloat()).coerceIn(0f, 1f)) },
+                )
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (thumbnails.isNotEmpty()) {
+        if (thumbnails.any { it != null }) {
+            // Immer THUMBNAILS_PER_CLIP gleich breite Slots, auch wenn
+            // einzelne Frames nicht extrahiert werden konnten (Platzhalter
+            // statt die erfolgreichen Bilder über die ganze Blockbreite zu
+            // strecken - sonst wirkt ein einzelner erfolgreich geladener
+            // Frame wie ein einziges, absurd vergrößertes Bild).
             Row(modifier = Modifier.fillMaxSize()) {
                 thumbnails.forEach { bitmap ->
-                    Image(
-                        bitmap = bitmap,
-                        contentDescription = null,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        contentScale = ContentScale.Crop,
-                    )
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = null,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant))
+                    }
                 }
             }
         } else {
@@ -258,6 +271,11 @@ private fun BoxScope.TrimHandle(
     var baseValueUs by remember { mutableStateOf(0L) }
     var pxPerUs by remember { mutableStateOf(0f) }
     var accumulatedPx by remember { mutableStateOf(0f) }
+    val dragState = rememberDraggableState { delta ->
+        accumulatedPx += delta
+        val deltaUs = (accumulatedPx / pxPerUs).toLong()
+        onNewTrim(baseValueUs + deltaUs, otherBoundaryUs())
+    }
 
     Box(
         modifier = Modifier
@@ -265,22 +283,16 @@ private fun BoxScope.TrimHandle(
             .fillMaxHeight()
             .width(TRIM_HANDLE_WIDTH_DP.dp)
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = {
-                        baseValueUs = currentValueUs()
-                        val widthPx = with(density) { widthDp.toPx() }
-                        pxPerUs = widthPx / durationUsAtDragStart().coerceAtLeast(1)
-                        accumulatedPx = 0f
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        accumulatedPx += dragAmount.x
-                        val deltaUs = (accumulatedPx / pxPerUs).toLong()
-                        onNewTrim(baseValueUs + deltaUs, otherBoundaryUs())
-                    },
-                )
-            },
+            .draggable(
+                state = dragState,
+                orientation = Orientation.Horizontal,
+                onDragStarted = {
+                    baseValueUs = currentValueUs()
+                    val widthPx = with(density) { widthDp.toPx() }
+                    pxPerUs = widthPx / durationUsAtDragStart().coerceAtLeast(1)
+                    accumulatedPx = 0f
+                },
+            ),
     )
 }
 
@@ -293,9 +305,9 @@ private fun BoxScope.TrimHandle(
  * Zeitbereich), statt beide dieselbe Vorschau der vollen Quelldatei.
  */
 @Composable
-private fun rememberClipThumbnails(clip: VideoClip): List<ImageBitmap> {
+private fun rememberClipThumbnails(clip: VideoClip): List<ImageBitmap?> {
     val context = LocalContext.current
-    val state = produceState(initialValue = emptyList(), clip.id) {
+    val state = produceState(initialValue = List<ImageBitmap?>(THUMBNAILS_PER_CLIP) { null }, clip.id) {
         value = withContext(Dispatchers.IO) {
             extractThumbnails(context, clip, THUMBNAILS_PER_CLIP)
         }
@@ -303,19 +315,21 @@ private fun rememberClipThumbnails(clip: VideoClip): List<ImageBitmap> {
     return state.value
 }
 
-private fun extractThumbnails(context: Context, clip: VideoClip, count: Int): List<ImageBitmap> {
+/** Liste fester Länge [count]; einzelne Einträge sind `null`, wenn dieser Frame nicht extrahiert werden konnte. */
+private fun extractThumbnails(context: Context, clip: VideoClip, count: Int): List<ImageBitmap?> {
     if (count <= 0) return emptyList()
     val retriever = MediaMetadataRetriever()
     return try {
         retriever.setDataSource(context, clip.sourceUri)
         val rangeUs = (clip.trimEndUs - clip.trimStartUs).coerceAtLeast(1)
-        (0 until count).mapNotNull { i ->
+        (0 until count).map { i ->
             val timeUs = clip.trimStartUs + (rangeUs * i / count)
-            retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                ?.asImageBitmap()
+            val frame = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
+            frame?.asImageBitmap()
         }
     } catch (_: Exception) {
-        emptyList()
+        List(count) { null }
     } finally {
         retriever.release()
     }
