@@ -175,6 +175,9 @@ ihn als Release-Asset.
   früheren Versuchen die Hauptursache für Gesten-Konflikte. Jeder der
   drei Griffe (zwei Trimm-Griffe, ein Positionsgriff) hat eine eigene,
   klar getrennte Trefferfläche.
+- Verlässt der Positionsgriff bei laufender Wiedergabe (ab Zoom > 1x)
+  den sichtbaren Bereich, scrollt die Zeitleiste sanft nach, statt den
+  Griff aus dem Bild laufen zu lassen.
 - Mehrere Clips (nach einem Schnitt) werden über eine einfache
   Auswahl-Reihe oberhalb des Trimm-Streifens gewechselt (Tippen +
   Verschieben-Pfeile, kein Ziehen) – diese Interaktion war bereits

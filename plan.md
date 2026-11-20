@@ -590,3 +590,17 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     Hochformat-Aufnahmen mit Rotations-Metadaten) korrekt wiedergibt -
     das lässt sich nur auf dem echten Gerät mit echten Testvideos
     verifizieren.
+  - **Positionsgriff läuft bei der Wiedergabe aus dem sichtbaren Bereich,
+    statt dass die Zeitleiste folgt** (Nutzerfeedback: "Nicht die
+    Markierung in der Zeitleiste soll sich aus dem Bild bewegen, sondern
+    die Zeitleiste bewegt sich fort"). Bisher wurde der Scroll-Zustand
+    nur beim Ändern des Zoom-Levels neu zentriert, nicht während der
+    laufenden Wiedergabe - bei Zoom > 1x lief der Positionsgriff dadurch
+    irgendwann aus dem sichtbaren Ausschnitt heraus. Neue, separate
+    `LaunchedEffect(playheadFraction)`: sobald der Griff den sichtbaren
+    Bereich tatsächlich verlässt, scrollt der Streifen (sanft animiert
+    über `animateScrollTo`) so, dass der Griff wieder mittig sichtbar
+    ist. Bewusst *kein* Zentrieren bei jedem Positions-Tick (alle 200ms),
+    damit sich der Streifen im pausierten Zustand weiterhin frei
+    verschieben lässt, um sich andere Stellen anzusehen, ohne dass das
+    sofort wieder zurückspringt.

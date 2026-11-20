@@ -242,6 +242,25 @@ private fun ActiveClipTrimStrip(
         scrollState.scrollTo(target)
     }
 
+    // Während der Wiedergabe der Zeitleiste folgen, statt den
+    // Positionsgriff aus dem sichtbaren Bereich laufen zu lassen
+    // (Nutzerfeedback: "Nicht die Markierung in der Zeitleiste soll sich
+    // aus dem Bild bewegen, sondern die Zeitleiste bewegt sich fort").
+    // Nur wenn der Griff den sichtbaren Bereich tatsächlich verlässt (nicht
+    // bei jedem Positions-Tick neu zentrieren) - sonst ließe sich der
+    // Streifen im pausierten Zustand nicht mehr frei verschieben, um sich
+    // andere Stellen anzusehen.
+    LaunchedEffect(playheadFraction) {
+        if (viewportWidthPx <= 0f) return@LaunchedEffect
+        val playheadPx = playheadFraction * stripWidthPx
+        val visibleStart = scrollState.value.toFloat()
+        val visibleEnd = visibleStart + viewportWidthPx
+        if (playheadPx < visibleStart || playheadPx > visibleEnd) {
+            val target = (playheadPx - viewportWidthPx / 2f).roundToInt().coerceIn(0, scrollState.maxValue)
+            scrollState.animateScrollTo(target)
+        }
+    }
+
     Column(Modifier.padding(vertical = 8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
