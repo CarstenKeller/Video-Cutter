@@ -7,6 +7,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
+/**
+ * Kennt bewusst kein eigenes "ausgewählter Clip"-Feld mehr: Welcher Clip
+ * aktiv ist (Trimm-Griffe, Löschen, Verschieben), ergibt sich allein aus der
+ * aktuellen Player-Position (siehe EditorScreen) - das entspricht genau dem
+ * Nutzerwunsch "Löschen löscht den Abschnitt, in dem gerade die Markierung
+ * auf der Zeitleiste steht".
+ */
 class TimelineViewModel : ViewModel() {
 
     private val _state = MutableStateFlow(TimelineState())
@@ -14,27 +21,11 @@ class TimelineViewModel : ViewModel() {
 
     fun addClip(uri: Uri, durationUs: Long) {
         val clip = VideoClip(sourceUri = uri, sourceDurationUs = durationUs)
-        _state.update { current ->
-            current.copy(clips = current.clips + clip, selectedClipId = clip.id)
-        }
-    }
-
-    fun selectClip(clipId: String) {
-        _state.update { it.copy(selectedClipId = clipId) }
+        _state.update { current -> current.copy(clips = current.clips + clip) }
     }
 
     fun deleteClip(clipId: String) {
-        _state.update { current ->
-            val remaining = current.clips.filterNot { it.id == clipId }
-            current.copy(
-                clips = remaining,
-                selectedClipId = if (current.selectedClipId == clipId) {
-                    remaining.firstOrNull()?.id
-                } else {
-                    current.selectedClipId
-                },
-            )
-        }
+        _state.update { current -> current.copy(clips = current.clips.filterNot { it.id == clipId }) }
     }
 
     fun updateTrim(clipId: String, trimStartUs: Long, trimEndUs: Long) {
@@ -71,7 +62,7 @@ class TimelineViewModel : ViewModel() {
                 removeAt(index)
                 addAll(index, listOf(firstHalf, secondHalf))
             }
-            current.copy(clips = newClips, selectedClipId = firstHalf.id)
+            current.copy(clips = newClips)
         }
     }
 

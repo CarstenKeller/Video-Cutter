@@ -2,14 +2,17 @@ package com.carstenkeller.videocutter.ui.components
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -22,13 +25,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,8 +39,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,15 +51,28 @@ import com.carstenkeller.videocutter.timeline.VideoClip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private const val THUMBNAILS_PER_CLIP = 6
+private const val THUMBNAILS_PER_CLIP = 8
 
+/**
+ * Zeitleiste. Jeder Clip-Block zeigt immer die komplette Quelldatei (konstante
+ * Breite = Quelllänge), nicht nur den getrimmten Ausschnitt - Trimm-Grenzen
+ * sind zwei verschiebbare Griffe *innerhalb* des Blocks, der Bereich davor/
+ * danach wird abgedunkelt. Das ist bewusst so (nicht breiten-proportional zur
+ * Trimm-Länge): In einer Row ändert sich beim Verkleinern eines Elements nur
+ * dessen rechter Rand sichtbar, nie der linke - ein breitenbasierter Ansatz
+ * hätte den linken Trimm-Griff optisch in die falsche Richtung laufen lassen.
+ *
+ * Tippen auf einen Block springt im Video an diese Stelle (Scrubben). Der
+ * Clip, in dem sich die Wiedergabeposition gerade befindet, gilt als "aktiv"
+ * (Trimm-Griffe, Verschieben-Pfeile) - es gibt bewusst keine davon unabhängige
+ * Auswahl mehr (siehe TimelineViewModel).
+ */
 @Composable
 fun TimelineView(
     clips: List<VideoClip>,
-    selectedClipId: String?,
     playheadClipIndex: Int,
     playheadPositionUs: Long,
-    onSelectClip: (String) -> Unit,
+    onSeek: (clipIndex: Int, positionInClipUs: Long) -> Unit,
     onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
     onMoveClip: (fromIndex: Int, toIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -70,33 +88,33 @@ fun TimelineView(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .height(88.dp)
+                .height(96.dp)
                 .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             clips.forEachIndexed { index, clip ->
-                val durationSeconds = clip.durationUs / 1_000_000f
-                val widthDp = (durationSeconds * 60f).coerceAtLeast(56f).dp
+                val sourceSeconds = clip.sourceDurationUs / 1_000_000f
+                val widthDp = (sourceSeconds * 60f).coerceAtLeast(56f).dp
                 ClipBlock(
                     clip = clip,
                     index = index,
-                    isSelected = clip.id == selectedClipId,
+                    isActive = index == playheadClipIndex,
                     widthDp = widthDp,
                     canMoveLeft = index > 0,
                     canMoveRight = index < clips.lastIndex,
-                    isPlayhead = index == playheadClipIndex,
-                    playheadFraction = (playheadPositionUs.toFloat() / clip.durationUs.toFloat()).coerceIn(0f, 1f),
-                    onClick = { onSelectClip(clip.id) },
+                    playheadFraction = ((clip.trimStartUs + playheadPositionUs).toFloat() / clip.sourceDurationUs.toFloat())
+                        .coerceIn(0f, 1f),
+                    onSeek = { fraction ->
+                        val absoluteUs = (fraction * clip.sourceDurationUs).toLong()
+                            .coerceIn(clip.trimStartUs, clip.trimEndUs)
+                        onSeek(index, absoluteUs - clip.trimStartUs)
+                    },
+                    onTrimChange = onTrimChange,
                     onMoveLeft = { onMoveClip(index, index - 1) },
                     onMoveRight = { onMoveClip(index, index + 1) },
                 )
             }
-        }
-
-        val selectedClip = clips.firstOrNull { it.id == selectedClipId }
-        if (selectedClip != null) {
-            TrimControls(clip = selectedClip, onTrimChange = onTrimChange)
         }
     }
 }
@@ -110,33 +128,40 @@ private fun formatTimeMs(ms: Long): String {
 private fun ClipBlock(
     clip: VideoClip,
     index: Int,
-    isSelected: Boolean,
+    isActive: Boolean,
     widthDp: Dp,
     canMoveLeft: Boolean,
     canMoveRight: Boolean,
-    isPlayhead: Boolean,
     playheadFraction: Float,
-    onClick: () -> Unit,
+    onSeek: (fraction: Float) -> Unit,
+    onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
     onMoveLeft: () -> Unit,
     onMoveRight: () -> Unit,
 ) {
     val thumbnails = rememberClipThumbnails(clip)
+    val latestClip = rememberUpdatedState(clip)
+    val density = LocalDensity.current
+    val widthPx = with(density) { widthDp.toPx() }
+
+    val trimStartFraction = (clip.trimStartUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
+    val trimEndFraction = (clip.trimEndUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
 
     Box(
         modifier = Modifier
             .width(widthDp)
-            .height(72.dp)
+            .height(80.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(
                 BorderStroke(
-                    width = if (isSelected) 2.dp else 1.dp,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    width = if (isActive) 2.dp else 1.dp,
+                    color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 ),
                 RoundedCornerShape(8.dp),
             )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+            .pointerInput(index) {
+                detectTapGestures { offset -> onSeek((offset.x / size.width.toFloat()).coerceIn(0f, 1f)) }
+            },
     ) {
         if (thumbnails.isNotEmpty()) {
             Row(modifier = Modifier.fillMaxSize()) {
@@ -149,11 +174,39 @@ private fun ClipBlock(
                     )
                 }
             }
+        } else {
+            Text(
+                "Clip ${index + 1}",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.Center),
+            )
         }
 
-        if (isSelected) {
+        // Abgedunkelte Bereiche außerhalb des Trimm-Fensters.
+        if (trimStartFraction > 0f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .width(widthDp * trimStartFraction)
+                    .background(Color.Black.copy(alpha = 0.55f)),
+            )
+        }
+        if (trimEndFraction < 1f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .width(widthDp * (1f - trimEndFraction))
+                    .background(Color.Black.copy(alpha = 0.55f)),
+            )
+        }
+
+        if (isActive) {
             Row(
                 modifier = Modifier
+                    .align(Alignment.TopStart)
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.45f)),
                 verticalAlignment = Alignment.CenterVertically,
@@ -180,11 +233,8 @@ private fun ClipBlock(
                     tint = Color.White,
                 )
             }
-        } else if (thumbnails.isEmpty()) {
-            Text("Clip ${index + 1}", maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
 
-        if (isPlayhead) {
+            // Positionsbalken (Playhead), relativ zur vollen Quelllänge.
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -193,34 +243,100 @@ private fun ClipBlock(
                     .width(2.dp)
                     .background(MaterialTheme.colorScheme.primary),
             )
+
+            TrimHandle(
+                fraction = trimStartFraction,
+                currentValueUs = { latestClip.value.trimStartUs },
+                sourceDurationUs = clip.sourceDurationUs,
+                widthDp = widthDp,
+                widthPx = widthPx,
+                onValueChange = { newStartUs -> onTrimChange(latestClip.value.id, newStartUs, latestClip.value.trimEndUs) },
+            )
+            TrimHandle(
+                fraction = trimEndFraction,
+                currentValueUs = { latestClip.value.trimEndUs },
+                sourceDurationUs = clip.sourceDurationUs,
+                widthDp = widthDp,
+                widthPx = widthPx,
+                onValueChange = { newEndUs -> onTrimChange(latestClip.value.id, latestClip.value.trimStartUs, newEndUs) },
+            )
         }
     }
 }
 
 /**
- * Lädt eine feste Anzahl Vorschaubilder für einen Clip. Wird bewusst nur bei
- * neuer Clip-Id neu berechnet (nicht bei jeder Trimm-Änderung), damit das
- * Ziehen am Trimm-Regler nicht durch wiederholte Frame-Extraktion ruckelt.
+ * Trimm-Griff, positioniert bei [fraction] der (konstanten) Block-Breite.
+ * [currentValueUs] liefert den aktuellen Trimm-Wert (Start oder Ende) beim
+ * Start der Geste - die Verschiebung wird relativ dazu aufsummiert, damit
+ * sie nicht pro Frame erneut auf den (sich während der Geste ändernden)
+ * Live-Wert aufaddiert wird.
+ */
+@Composable
+private fun BoxScope.TrimHandle(
+    fraction: Float,
+    currentValueUs: () -> Long,
+    sourceDurationUs: Long,
+    widthDp: Dp,
+    widthPx: Float,
+    onValueChange: (newValueUs: Long) -> Unit,
+) {
+    var baseValueUs by remember { mutableStateOf(0L) }
+    var accumulatedPx by remember { mutableStateOf(0f) }
+    val pxPerUs = widthPx / sourceDurationUs.coerceAtLeast(1)
+
+    Box(
+        modifier = Modifier
+            .align(Alignment.CenterStart)
+            .offset(x = (widthDp * fraction - 8.dp).coerceIn(0.dp, widthDp - 16.dp))
+            .fillMaxHeight()
+            .width(16.dp)
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), RoundedCornerShape(3.dp))
+            .pointerInput(sourceDurationUs) {
+                detectDragGestures(
+                    onDragStart = {
+                        baseValueUs = currentValueUs()
+                        accumulatedPx = 0f
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        accumulatedPx += dragAmount.x
+                        val deltaUs = (accumulatedPx / pxPerUs).toLong()
+                        onValueChange(baseValueUs + deltaUs)
+                    },
+                )
+            },
+    )
+}
+
+/**
+ * Lädt eine feste Anzahl Vorschaubilder über die komplette Quelldatei
+ * (unabhängig vom aktuellen Trimm, der sich nur noch über die Griffe/
+ * Abdunkelung zeigt). Wird bewusst nur bei neuer Clip-Id neu berechnet.
  */
 @Composable
 private fun rememberClipThumbnails(clip: VideoClip): List<ImageBitmap> {
     val context = LocalContext.current
     val state = produceState(initialValue = emptyList(), clip.id) {
         value = withContext(Dispatchers.IO) {
-            extractThumbnails(context, clip, THUMBNAILS_PER_CLIP)
+            extractThumbnails(context, clip.sourceUri, clip.sourceDurationUs, THUMBNAILS_PER_CLIP)
         }
     }
     return state.value
 }
 
-private fun extractThumbnails(context: Context, clip: VideoClip, count: Int): List<ImageBitmap> {
+private fun extractThumbnails(
+    context: Context,
+    sourceUri: Uri,
+    sourceDurationUs: Long,
+    count: Int,
+): List<ImageBitmap> {
     if (count <= 0) return emptyList()
     val retriever = MediaMetadataRetriever()
     return try {
-        retriever.setDataSource(context, clip.sourceUri)
-        val rangeUs = (clip.trimEndUs - clip.trimStartUs).coerceAtLeast(1)
+        retriever.setDataSource(context, sourceUri)
+        val durationUs = sourceDurationUs.coerceAtLeast(1)
         (0 until count).mapNotNull { i ->
-            val timeUs = clip.trimStartUs + (rangeUs * i / count)
+            val timeUs = durationUs * i / count
             retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                 ?.asImageBitmap()
         }
@@ -228,34 +344,5 @@ private fun extractThumbnails(context: Context, clip: VideoClip, count: Int): Li
         emptyList()
     } finally {
         retriever.release()
-    }
-}
-
-@Composable
-private fun TrimControls(
-    clip: VideoClip,
-    onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
-) {
-    val durationSeconds = (clip.sourceDurationUs / 1_000_000f).coerceAtLeast(0.2f)
-    var range by remember(clip.id) {
-        mutableStateOf((clip.trimStartUs / 1_000_000f)..(clip.trimEndUs / 1_000_000f))
-    }
-    Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-        Text(
-            "Trimmen: %.1fs – %.1fs".format(range.start, range.endInclusive),
-            style = MaterialTheme.typography.bodySmall,
-        )
-        RangeSlider(
-            value = range,
-            onValueChange = { newRange ->
-                range = newRange
-                onTrimChange(
-                    clip.id,
-                    (newRange.start * 1_000_000).toLong(),
-                    (newRange.endInclusive * 1_000_000).toLong(),
-                )
-            },
-            valueRange = 0f..durationSeconds,
-        )
     }
 }

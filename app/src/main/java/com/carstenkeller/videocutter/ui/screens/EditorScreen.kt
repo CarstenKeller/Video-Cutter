@@ -55,16 +55,28 @@ fun EditorScreen(
         onDispose { player.release() }
     }
 
-    // Debounced statt bei jedem einzelnen Trimm-Regler-Tick: sonst baut jede
-    // Fingerbewegung auf dem RangeSlider die komplette Playlist neu auf
+    // Debounced statt bei jedem einzelnen Trimm-Griff-Tick: sonst baut jede
+    // Fingerbewegung auf der Zeitleiste die komplette Playlist neu auf
     // (setMediaItems + prepare), was die App spürbar träge macht.
     LaunchedEffect(timelineViewModel) {
         var pendingRebuild: Job? = null
+        var loadedClips = timelineViewModel.state.value.clips
         timelineViewModel.state.collect { current ->
             pendingRebuild?.cancel()
             pendingRebuild = launch {
                 delay(250)
                 if (current.clips.isEmpty()) return@launch
+
+                // setMediaItems(List) allein würde die Wiedergabe immer auf den
+                // Projektanfang zurücksetzen. Stattdessen: aktuelle Position als
+                // "verstrichene Zeit seit Projektanfang" (bezogen auf die noch
+                // geladene Clip-Liste) sichern und nach dem Neuaufbau an der
+                // äquivalenten Stelle im neuen Clip-Satz fortsetzen - sonst würde
+                // z. B. jeder Trimm-Zug die Vorschau an den Anfang zurückspringen
+                // lassen.
+                val elapsedBeforeUs = loadedClips.take(player.currentMediaItemIndex).sumOf { it.durationUs } +
+                    player.currentPosition * 1000
+
                 val mediaItems = current.clips.map { clip ->
                     MediaItem.Builder()
                         .setUri(clip.sourceUri)
@@ -76,8 +88,22 @@ fun EditorScreen(
                         )
                         .build()
                 }
-                player.setMediaItems(mediaItems)
+
+                var remainingUs = elapsedBeforeUs
+                var targetIndex = 0
+                for (i in current.clips.indices) {
+                    val duration = current.clips[i].durationUs
+                    if (i == current.clips.lastIndex || remainingUs < duration) {
+                        targetIndex = i
+                        break
+                    }
+                    remainingUs -= duration
+                }
+                val targetPositionMs = remainingUs.coerceIn(0, current.clips[targetIndex].durationUs) / 1000
+
+                player.setMediaItems(mediaItems, targetIndex, targetPositionMs)
                 player.prepare()
+                loadedClips = current.clips
             }
         }
     }
@@ -113,7 +139,9 @@ fun EditorScreen(
                     val clip = state.clips.getOrNull(index) ?: return@TimelineToolbar
                     timelineViewModel.splitClip(clip.id, player.currentPosition * 1000)
                 },
-                onDelete = { state.selectedClipId?.let(timelineViewModel::deleteClip) },
+                onDelete = {
+                    state.clips.getOrNull(playheadClipIndex)?.let { timelineViewModel.deleteClip(it.id) }
+                },
                 onAddClip = addClipLauncher,
                 onRecordClip = onRecordRequested,
                 onQuickExtract = { showQuickExtractDialog = true },
@@ -122,14 +150,9 @@ fun EditorScreen(
 
             TimelineView(
                 clips = state.clips,
-                selectedClipId = state.selectedClipId,
                 playheadClipIndex = playheadClipIndex,
                 playheadPositionUs = playheadPositionUs,
-                onSelectClip = { clipId ->
-                    timelineViewModel.selectClip(clipId)
-                    val index = state.clips.indexOfFirst { it.id == clipId }
-                    if (index >= 0) player.seekTo(index, 0)
-                },
+                onSeek = { index, positionInClipUs -> player.seekTo(index, positionInClipUs / 1000) },
                 onTrimChange = timelineViewModel::updateTrim,
                 onMoveClip = timelineViewModel::moveClip,
             )

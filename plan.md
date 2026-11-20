@@ -84,6 +84,14 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 
 ## Phase 5 – Übergänge
 
+> Nutzerwunsch (Gerätetest-Feedback): zwischen zwei benachbarten Clips
+> unterschiedliche Übergänge einfügbar machen. Bewusst noch nicht
+> zusammen mit den anderen Zeitleiste-Fixes umgesetzt – Media3
+> Composition/Transition-Effekte sind die technisch unsicherste, noch
+> nicht verifizierte Stelle im ganzen Projekt (siehe "Offene technische
+> Unsicherheit" oben) und verdienen einen eigenen, sorgfältig getesteten
+> Durchlauf statt in einer großen Sammel-Änderung mitgezogen zu werden.
+
 - [ ] Technische Verifikation der Media3-Fähigkeiten (siehe oben)
 - [ ] Crossfade zwischen Clips
 - [ ] Fade to Black/White
@@ -174,6 +182,22 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 >    Videolänge, nur für MP4 (GIF bleibt bei den kurzen Presets wegen
 >    Dateigröße/Performance).
 
+> **Korrektur (Nutzerfeedback):** Die ursprüngliche Klärung "ab 10s nur
+> noch MP4" war ein Missverständnis – GIF soll bei allen drei Presets
+> (2s/5s/10s) möglich sein, nur bei frei gewählter Dauer über 10s hinaus
+> ("Länger…") bleibt GIF gesperrt. `ExtractDurationPreset.LONG.allowsGif`
+> auf `true` korrigiert.
+
+> **Noch offen (Nutzerwunsch):** Der Dialog soll durch Inline-Bedienung auf
+> der Hauptseite ersetzt werden – Längen-/Formatauswahl direkt im Editor,
+> der Ausschnitt als verschiebbares Fenster auf der Zeitleiste (zusätzlich
+> zum normalen Positionsbalken), Wiedergabe spielt währenddessen nur das
+> Fenster in Dauerschleife, nach dem Extrahieren wechselt die Zeitleiste
+> zurück in den normalen Positions-Modus. Bewusst nicht zusammen mit den
+> übrigen Zeitleiste-Fixes umgesetzt (eigener, nicht-trivialer
+> Umbau von Timeline + Player-Loop-Logik, der einen eigenen Durchlauf
+> verdient statt in einer großen Sammel-Änderung mitgezogen zu werden).
+
 - [ ] Neuer Toolbar-Button "Ausschnitt extrahieren" an der aktuellen Abspielposition
 - [ ] Dialog: Längen-Presets (2s/5s/10s), Formatwahl (GIF/MP4, abhängig von Preset), Positions-Schieberegler
 - [ ] MP4-Export: Wiederverwendung der bestehenden Media3-Transformer-Pipeline (Einzel-Clip mit Trim-Grenzen = Fenster)
@@ -237,3 +261,44 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   aktuellen Clip-Block sowie eine Zeitanzeige "verstrichene Zeit /
   Gesamtlänge" über der Zeitleiste (ExoPlayer-Position wird dafür alle
   200ms abgefragt, da kein nativer Compose-State dafür existiert).
+- **APK-Größe erneut geprüft (Nutzerfeedback, ~36MB):** Erneut per
+  `unzip`/`strings` am gebauten APK untersucht statt vermutet. Befund:
+  ~94% der APK sind drei `.dex`-Dateien, dominiert von unverkürztem
+  Compose/Media3/CameraX/Kotlin-Bytecode – strukturell normal für einen
+  Debug-Build ohne R8/Minify, keine einzelne Fehlkonfiguration wie zuvor
+  bei `material-icons-extended`. Entscheidung (Nutzer gefragt): R8/
+  Minify **nicht** aktivieren, da das echte Regressionsrisiko für Media3
+  Transformer/CameraX (Reflection-sensitiver Code) nur per Gerätetest
+  prüfbar wäre und nicht gegen eine moderate Größenersparnis aufwiegt.
+- **Zeitleiste grundlegend überarbeitet (Nutzerfeedback, Gerätetest):**
+  - Tippen auf einen Clip-Block springt im Video an diese Stelle
+    (Scrubben), ersetzt die reine "Clip auswählen"-Funktion.
+  - Trimmen geschieht jetzt direkt auf der Zeitleiste über zwei
+    Zieh-Griffe am Rand des aktiven Clip-Blocks statt über einen
+    separaten Regler unterhalb des Videos (`TrimControls`/`RangeSlider`
+    entfernt). Jeder Block zeigt dafür immer die komplette Quelldatei in
+    konstanter Breite, der Bereich außerhalb des Trimm-Fensters wird
+    abgedunkelt – eine breiten-proportionale Darstellung (Blockbreite
+    abhängig von der Trimm-Länge) hätte dazu geführt, dass sich in der
+    Row-Anordnung beim Verkleinern nur der rechte Blockrand visuell
+    bewegt, nie der linke, was den linken Trimm-Griff optisch in die
+    falsche Richtung hätte laufen lassen.
+  - "Löschen" löscht jetzt den Clip, in dem sich die Wiedergabeposition
+    gerade befindet (nicht mehr eine separate Auswahl) – das bisherige
+    `selectedClipId`-Feld in `TimelineState`/`TimelineViewModel` wurde
+    komplett entfernt, da "aktiver Clip" jetzt ausschließlich aus der
+    Player-Position abgeleitet wird.
+  - Dabei gefundener, vorher unsichtbarer Fehler mitbehoben: Der
+    Playlist-Neuaufbau nach jeder Änderung (`setMediaItems`) hat die
+    Wiedergabe bisher immer auf den Projektanfang zurückgesetzt – ohne
+    Positionsanzeige nicht auffällig, mit Positionsbalken wäre das jetzt
+    als Sprung nach jedem Trimmen/Schneiden sichtbar geworden. Behoben,
+    indem die Position als "verstrichene Zeit" vor dem Neuaufbau
+    gesichert und danach an der äquivalenten Stelle im neuen Clip-Satz
+    fortgesetzt wird.
+  - **Nicht verifiziert:** Die Geste-Ebenen (Tippen zum Springen, Ziehen
+    an den Trimm-Griffen, Verschieben-Pfeile) wurden sorgfältig nach
+    gängigen Compose-Mustern geschichtet, konnten aber nicht auf einem
+    echten Gerät getestet werden – insbesondere ob sich Tippen und
+    Trimm-Griffe nicht gegenseitig stören, muss der nächste Gerätetest
+    zeigen.

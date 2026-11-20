@@ -94,7 +94,8 @@ ihn als Release-Asset.
   wählen (2s/5s/10s) oder per "Länger…" eine frei wählbare Dauer bis zur
   vollen Videolänge, Position per Schieberegler verschieben, als GIF
   oder MP4 extrahieren
-- GIF nur bis 5s verfügbar (ab 10s bzw. bei freier Dauer nur MP4), wegen
+- GIF ist bei allen drei Presets (2s/5s/10s) möglich, nur bei frei
+  gewählter Dauer über 10s hinaus ("Länger…") nur noch MP4, wegen
   Dateigröße/Performance
 - Der Ausschnitt greift immer auf die komplette Videospur (Quelldatei) zu,
   nicht nur auf den aktuell in der Timeline eingestellten Trimm-Bereich
@@ -119,18 +120,32 @@ ihn als Release-Asset.
   Strich-Vektor-Icons (`app/src/main/res/drawable/ic_*.xml`) ersetzt –
   dadurch sollte die APK deutlich kleiner werden. **Bestätigt:** Build
   `f9ff47a` liefert 34,3MB statt zuvor >60MB.
+- Die verbleibenden ~36MB wurden erneut untersucht: ~94% davon sind
+  unverkürzter Compose/Media3/CameraX/Kotlin-Bytecode, strukturell normal
+  für einen Debug-Build ohne R8/Minify (kein einzelner Fehlkonfiguration
+  wie zuvor bei den Material-Icons). R8/Minify wurde bewusst **nicht**
+  aktiviert, da das Regressionsrisiko für Media3 Transformer/CameraX nur
+  per Gerätetest prüfbar wäre.
 - App-Icon überarbeitet: statt eines einfachen weißen Play-Dreiecks zeigt
   es jetzt einen horizontal "geschnittenen" Play-Button (zwei Keile mit
   Lücke dazwischen) auf kräftigem Blau – als Symbol für "Schneiden" +
   "Abspielen". **Nicht verifiziert:** Wirkung auf echtem Homescreen/App-
   Drawer noch nicht gegengeprüft.
 
-## Zeitleiste: Positionsanzeige
+## Zeitleiste: Positionsanzeige, Scrubben, Trimmen per Griff
 
-- Die Zeitleiste zeigt jetzt einen Positionsbalken (Playhead) im aktuell
-  wiedergegebenen Clip-Block sowie "verstrichene Zeit / Gesamtlänge" über
-  der Zeitleiste – vorher war anhand der Clip-Blöcke (reine Thumbnail-
-  Streifen) nicht erkennbar, an welcher Stelle im Video man sich befindet.
+- Positionsbalken (Playhead) im aktuell wiedergegebenen Clip-Block sowie
+  "verstrichene Zeit / Gesamtlänge" über der Zeitleiste.
+- Tippen auf einen Clip-Block springt im Video an diese Stelle.
+- Trimmen geschieht direkt auf der Zeitleiste über zwei Zieh-Griffe am
+  Rand des aktiven Clip-Blocks, nicht mehr über einen separaten Regler.
+  Jeder Block zeigt dafür immer die komplette Quelldatei; der Bereich
+  außerhalb des Trimm-Fensters wird abgedunkelt.
+- "Löschen" löscht den Clip, in dem sich die Wiedergabeposition gerade
+  befindet (keine separate Auswahl mehr nötig).
+- **Nicht verifiziert:** Die Geste-Ebenen (Tippen, Trimm-Griffe,
+  Verschieben-Pfeile) sind nach gängigen Compose-Mustern geschichtet,
+  aber nicht auf einem echten Gerät getestet.
 
 Alles Weitere (mehrere Videospuren, Audiospur, Bilder, Übergänge,
 Hintergrund-Ersatz, Undo/Redo etc.) folgt gemäß `plan.md`.
