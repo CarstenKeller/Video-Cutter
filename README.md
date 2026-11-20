@@ -108,8 +108,10 @@ ihn als Release-Asset.
   nicht nur auf den aktuell in der Timeline eingestellten Trimm-Bereich
 - MP4-Export nutzt die bestehende Media3-Transformer-Pipeline; GIF-Export
   nutzt einen selbst geschriebenen, bewusst vereinfachten GIF89a-Encoder
-  (feste 256-Farben-Palette, keine echte LZW-Kompression – siehe
-  `extract/GifEncoder.kt` für die Begründung)
+  (keine echte LZW-Kompression – siehe `extract/GifEncoder.kt` für die
+  Begründung), aber mit echter Median-Cut-Farbpalette statt einer festen
+  Farbaufteilung (siehe `extract/MedianCutPalette.kt`), 12 fps und
+  540px maximaler Breite
 - Speichern: MP4 im Album „Video Cutter" (Filme), GIF im Album
   „Video Cutter" (Bilder)
 - **Bug behoben:** Erzeugte GIFs ließen sich nicht abspielen. Ursache:
@@ -170,6 +172,8 @@ ihn als Release-Asset.
   nicht mehr verzerrt) und bleiben beim Zoomen gleich groß; beim Zoomen
   wächst stattdessen die Anzahl der Kacheln (mehrere zeigen dann
   dasselbe extrahierte Einzelbild) und damit auch die Scrollstrecke.
+- Der Filmstreifen ist niedrig (40dp), damit auf der Bildschirmbreite
+  mehr (und damit unterscheidbarere) Kacheln Platz finden.
 - Ein eigener, ziehbarer Positionsstrich (weiß) scrubbt die Wiedergabe –
   bewusst **kein** "an beliebiger Stelle tippen" mehr, das war in
   früheren Versuchen die Hauptursache für Gesten-Konflikte. Jeder der

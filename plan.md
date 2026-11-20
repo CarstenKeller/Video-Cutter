@@ -158,13 +158,17 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 > **Technische Entscheidung:** Android hat keine eingebaute GIF-Kodierung.
 > Statt eines komplexen adaptiven LZW-Encoders (hohes Risiko für subtile
 > Fehler, die sich hier nicht testen lassen) wird ein bewusst vereinfachter,
-> aber korrekter GIF89a-Encoder eingesetzt: feste 256-Farben-Palette
-> (3-3-2-Bit-Reduktion, keine adaptive Farboptimierung) und "LZW ohne echte
-> Kompression" (jeder Pixel ein eigener fester 9-Bit-Code, kein wachsendes
-> Wörterbuch). Ergebnis: garantiert spezifikationskonforme, korrekt
-> abspielbare GIFs, nur ohne den Dateigrößen-Vorteil von echtem LZW – für
-> kurze/kleine Clips ein akzeptabler Kompromiss gegenüber dem Risiko eines
-> fehlerhaften, nicht testbaren adaptiven Encoders.
+> aber korrekter GIF89a-Encoder eingesetzt: "LZW ohne echte Kompression"
+> (jeder Pixel ein eigener fester 9-Bit-Code, kein wachsendes Wörterbuch).
+> Ergebnis: garantiert spezifikationskonforme, korrekt abspielbare GIFs,
+> nur ohne den Dateigrößen-Vorteil von echtem LZW – für kurze/kleine Clips
+> ein akzeptabler Kompromiss gegenüber dem Risiko eines fehlerhaften, nicht
+> testbaren adaptiven Encoders. Die Farbpalette selbst war anfangs ebenso
+> bewusst einfach (feste 3-3-2-Bit-Reduktion), wurde aber später durch
+> Median-Cut ersetzt (siehe Änderungsprotokoll unten) - das Risiko eines
+> Fehlers dabei ist deutlich geringer als bei einem adaptiven LZW-Encoder,
+> da eine falsche Palette höchstens zu falschen Farben führt, nie zu einer
+> unlesbaren Datei.
 
 > **Einschränkung (Nutzerfeedback):** Macht nur auf der Filmspur Sinn.
 > Aktuell gibt es nur eine Spur (die Filmspur), daher noch kein Problem –
@@ -604,3 +608,42 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     damit sich der Streifen im pausierten Zustand weiterhin frei
     verschieben lässt, um sich andere Stellen anzusehen, ohne dass das
     sofort wieder zurückspringt.
+- **Zeitleiste niedriger gemacht** (Nutzerfeedback: "nur halb so hoch,
+  damit wir mehr thumbnails auf der Bildschirmbreite unterbringen
+  können. Man sieht sonst kaum einen Unterschied zwischen den
+  thumbnails"). `STRIP_HEIGHT_DP` von 80 auf 40 halbiert - da die
+  Kachelbreite an die Streifenhöhe gekoppelt ist (Breite = Höhe ×
+  Videoseitenverhältnis, siehe oben), ergibt sich daraus automatisch die
+  gewünschte höhere Kachel-Anzahl pro Bildschirmbreite, ohne die
+  Kacheln selbst zu verzerren.
+- **GIF-Qualität deutlich verbessert** (Nutzerfeedback: "wenige Frames,
+  wenige Farben, schlechte Auflösung"):
+  - **Farben:** Die feste 3-3-2-Bit-Palette (8 Rot-, 8 Grün-, nur 4
+    Blau-Stufen, unabhängig vom Bildinhalt) durch echte Median-Cut-
+    Quantisierung ersetzt (neue Klasse `MedianCutPalette`). Statt die
+    256 Palette-Plätze starr auf den gesamten Farbraum zu verteilen
+    (wobei die meisten Plätze auf Farbtöne fielen, die im Video gar
+    nicht vorkamen), verteilt Median-Cut sie nach tatsächlich
+    vorkommenden Farben: wiederholtes Teilen einer Pixel-Stichprobe
+    entlang der jeweils breitesten Farbachse am Median, bis 256
+    Teilmengen entstanden sind, deren Mittelwerte die Palette bilden.
+    Der dabei entstehende Teilungsbaum dient gleich als schneller
+    Klassifizierungsbaum (wenige Vergleiche statt Abstandsberechnung zu
+    allen 256 Farben pro Pixel - bei hunderttausenden Pixeln pro Bild
+    sonst zu teuer). Die Stichprobe wird aus Anfang/Mitte/Ende des
+    gewählten Zeitfensters gezogen (je bis zu 5000 Pixel), um auch
+    Szenenwechsel innerhalb des Fensters halbwegs abzudecken, ohne alle
+    Frames im Speicher halten zu müssen. Bewusst *kein* NeuQuant oder
+    adaptiver LZW-Encoder (weiterhin zu riskant ohne Gerätetest) - eine
+    falsche Palette führt höchstens zu falschen Farben, nie zu einer
+    unlesbaren Datei, anders als ein Fehler in der LZW-Logik (siehe
+    GIF-Encoder-Bug oben).
+  - **Frames/Auflösung:** Bildrate von 10 auf 12 fps, maximale Breite
+    von 480 auf 540px erhöht. Bewusst moderat, nicht stärker: die
+    Dateigröße wächst bei diesem absichtlich einfachen Encoder (kein
+    echtes LZW, s. `GifEncoder`) praktisch linear mit Pixelzahl ×
+    Framezahl, eine starke Erhöhung hätte für die ohnehin schon
+    großen GIF-Dateien unpraktikable Größen ergeben. **Nicht
+    verifiziert:** Ob diese Werte in der Praxis die richtige Balance
+    zwischen Qualität und Dateigröße treffen - lässt sich nur mit
+    echten Exporten auf dem Gerät beurteilen.

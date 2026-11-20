@@ -6,29 +6,32 @@ import java.io.OutputStream
 /**
  * Minimaler, bewusst vereinfachter GIF89a-Encoder für kurze Video-Ausschnitte.
  *
- * Zwei bewusste Vereinfachungen gegenüber einem vollwertigen GIF-Encoder
- * (Begründung: beide Alternativen wären deutlich fehleranfälliger und lassen
+ * Eine bewusste Vereinfachung gegenüber einem vollwertigen GIF-Encoder
+ * (Begründung: die Alternative wäre deutlich fehleranfälliger und lässt
  * sich in dieser Umgebung nicht auf einem echten Gerät testen, bevor der
- * Nutzer es tut – ein garantiert spezifikationskonformes, wenn auch größeres
- * Ergebnis ist hier die sicherere Wahl):
+ * Nutzer es tut – ein garantiert spezifikationskonformes, wenn auch
+ * größeres Ergebnis ist hier die sicherere Wahl):
  *
- * 1. Feste 256-Farben-Palette (3 Bit Rot, 3 Bit Grün, 2 Bit Blau – "3-3-2"-
- *    Reduktion) statt adaptiver Farboptimierung (z. B. NeuQuant) pro Bild.
- * 2. Die LZW-Kompression wird nicht wirklich genutzt: jeder Pixel wird als
- *    eigener, fester 9-Bit-Code geschrieben (kein wachsendes Wörterbuch,
- *    keine Code-Breiten-Anpassung durch den Encoder selbst). Wichtig dabei:
- *    ein konformer Decoder baut sein Wörterbuch trotzdem mit (das ist Teil
- *    des Decoder-Algorithmus, unabhängig davon, welche Codes der Encoder
- *    tatsächlich benutzt) und erhöht automatisch die Code-Breite, sobald das
- *    Wörterbuch 512 Einträge erreicht (2^9) - danach erwartet er 10-Bit-Codes.
- *    Ohne Gegenmaßnahme würden Encoder und Decoder nach spätestens 254
- *    Pixeln bezüglich der Code-Breite auseinanderlaufen und das Bild wäre ab
- *    dort unlesbar (genau das war der Fehler in einer früheren Version
- *    dieser Datei: GIFs mit mehr als rund 250 Pixeln ließen sich nicht
- *    abspielen). Fix: alle 100 Pixel wird vorsorglich ein Clear-Code
- *    gesendet, der das Wörterbuch beim Decoder zurücksetzt, bevor die
- *    kritische Schwelle von 512 Einträgen erreicht wird - der Encoder bleibt
- *    dadurch dauerhaft bei 9 Bit pro Code.
+ * Die LZW-Kompression wird nicht wirklich genutzt: jeder Pixel wird als
+ * eigener, fester 9-Bit-Code geschrieben (kein wachsendes Wörterbuch,
+ * keine Code-Breiten-Anpassung durch den Encoder selbst). Wichtig dabei:
+ * ein konformer Decoder baut sein Wörterbuch trotzdem mit (das ist Teil
+ * des Decoder-Algorithmus, unabhängig davon, welche Codes der Encoder
+ * tatsächlich benutzt) und erhöht automatisch die Code-Breite, sobald das
+ * Wörterbuch 512 Einträge erreicht (2^9) - danach erwartet er 10-Bit-Codes.
+ * Ohne Gegenmaßnahme würden Encoder und Decoder nach spätestens 254
+ * Pixeln bezüglich der Code-Breite auseinanderlaufen und das Bild wäre ab
+ * dort unlesbar (genau das war der Fehler in einer früheren Version
+ * dieser Datei: GIFs mit mehr als rund 250 Pixeln ließen sich nicht
+ * abspielen). Fix: alle 100 Pixel wird vorsorglich ein Clear-Code
+ * gesendet, der das Wörterbuch beim Decoder zurücksetzt, bevor die
+ * kritische Schwelle von 512 Einträgen erreicht wird - der Encoder bleibt
+ * dadurch dauerhaft bei 9 Bit pro Code.
+ *
+ * Die Farbpalette selbst ist dagegen *nicht* mehr fest, sondern wird dem
+ * Encoder von außen als [palette] übergeben (siehe [MedianCutPalette]) -
+ * eine feste, vom Bildinhalt unabhängige Farbaufteilung führte bei normalen
+ * Videos zu sichtbarem Banding (Nutzerfeedback: "wenige Farben").
  *
  * Alle Byte-Layouts (Header, Logical Screen Descriptor, Graphic Control
  * Extension, Image Descriptor, NETSCAPE2.0-Loop-Extension) folgen exakt der
@@ -40,6 +43,7 @@ class GifEncoder(
     private val width: Int,
     private val height: Int,
     private val frameDelayCentiseconds: Int,
+    private val palette: MedianCutPalette,
 ) {
     private var headerWritten = false
 
@@ -73,14 +77,14 @@ class GifEncoder(
     }
 
     private fun buildPalette(): ByteArray {
-        val palette = ByteArray(256 * 3)
+        val bytes = ByteArray(256 * 3)
         for (index in 0 until 256) {
-            val (r, g, b) = paletteColorFor(index)
-            palette[index * 3] = r.toByte()
-            palette[index * 3 + 1] = g.toByte()
-            palette[index * 3 + 2] = b.toByte()
+            val packed = palette.colors.getOrElse(index) { 0 }
+            bytes[index * 3] = ((packed shr 16) and 0xFF).toByte()
+            bytes[index * 3 + 1] = ((packed shr 8) and 0xFF).toByte()
+            bytes[index * 3 + 2] = (packed and 0xFF).toByte()
         }
-        return palette
+        return bytes
     }
 
     private fun writeNetscapeLoopExtension() {
@@ -127,7 +131,7 @@ class GifEncoder(
                 packer.writeCode(CLEAR_CODE, CODE_BITS)
                 codesSinceClear = 0
             }
-            packer.writeCode(paletteIndexFor(pixel), CODE_BITS)
+            packer.writeCode(palette.indexOf(pixel), CODE_BITS)
             codesSinceClear++
         }
         packer.writeCode(END_CODE, CODE_BITS)
@@ -137,20 +141,6 @@ class GifEncoder(
     private fun writeLeShort(value: Int) {
         output.write(value and 0xFF)
         output.write((value shr 8) and 0xFF)
-    }
-
-    private fun paletteIndexFor(pixel: Int): Int {
-        val r = (pixel shr 16) and 0xFF
-        val g = (pixel shr 8) and 0xFF
-        val b = pixel and 0xFF
-        return ((r shr 5) shl 5) or ((g shr 5) shl 2) or (b shr 6)
-    }
-
-    private fun paletteColorFor(index: Int): Triple<Int, Int, Int> {
-        val r = (index shr 5) and 0x07
-        val g = (index shr 2) and 0x07
-        val b = index and 0x03
-        return Triple((r * 255) / 7, (g * 255) / 7, (b * 255) / 3)
     }
 
     companion object {

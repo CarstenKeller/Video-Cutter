@@ -56,7 +56,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val THUMBNAIL_EXTRACT_COUNT = 40
-private const val STRIP_HEIGHT_DP = 80
+// Niedriger Streifen (Nutzerfeedback: "nur halb so hoch, damit wir mehr
+// thumbnails auf der Bildschirmbreite unterbringen können") - die
+// Kachelbreite hängt an dieser Höhe (Breite = Höhe × Videoseitenverhältnis),
+// eine niedrigere Höhe ergibt also automatisch schmalere, dafür mehr
+// Kacheln pro Bildschirmbreite.
+private const val STRIP_HEIGHT_DP = 40
 private const val HANDLE_WIDTH_DP = 16
 private const val MAX_ZOOM = 60f
 private const val ZOOM_STEP = 1.6f

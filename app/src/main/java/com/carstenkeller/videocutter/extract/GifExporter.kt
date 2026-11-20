@@ -31,6 +31,26 @@ class GifExporter(private val context: Context) {
                 .coerceAtLeast(1)
             val frameStepUs = windowDurationUs / frameCount
 
+            // Palette vorab aus Anfang/Mitte/Ende des Fensters bauen (statt
+            // einer festen, bildunabhängigen Farbaufteilung - siehe
+            // MedianCutPalette) - deckt auch einen Szenenwechsel innerhalb
+            // des Fensters halbwegs ab, ohne dafür alle Frames im Speicher
+            // halten zu müssen.
+            val paletteSampleTimestamps = listOf(
+                startUs,
+                startUs + windowDurationUs / 2,
+                (endUs - frameStepUs).coerceAtLeast(startUs),
+            )
+            val paletteSamples = paletteSampleTimestamps.flatMap { timeUs ->
+                val rawFrame = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: return@flatMap emptyList()
+                val frame = scaleDown(rawFrame)
+                val samples = samplePixels(frame, PALETTE_SAMPLES_PER_FRAME).toList()
+                if (frame !== rawFrame) rawFrame.recycle()
+                frame.recycle()
+                samples
+            }
+            val palette = MedianCutPalette.build(paletteSamples.toIntArray())
+
             FileOutputStream(outputFile).use { out ->
                 var encoder: GifEncoder? = null
                 var framesWritten = 0
@@ -40,7 +60,7 @@ class GifExporter(private val context: Context) {
                         ?: continue
                     val frame = scaleDown(rawFrame)
                     if (encoder == null) {
-                        encoder = GifEncoder(out, frame.width, frame.height, CENTISECONDS_PER_FRAME)
+                        encoder = GifEncoder(out, frame.width, frame.height, CENTISECONDS_PER_FRAME, palette)
                     }
                     encoder.writeFrame(frame)
                     if (frame !== rawFrame) rawFrame.recycle()
@@ -64,9 +84,25 @@ class GifExporter(private val context: Context) {
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
+    /** Bis zu [maxSamples] gleichmäßig über das Bild verteilte Pixel (für die Palette, nicht die volle Pixelzahl). */
+    private fun samplePixels(bitmap: Bitmap, maxSamples: Int): IntArray {
+        val total = bitmap.width * bitmap.height
+        if (total <= 0) return IntArray(0)
+        val allPixels = IntArray(total)
+        bitmap.getPixels(allPixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        if (total <= maxSamples) return allPixels
+        val step = total / maxSamples
+        return IntArray(maxSamples) { i -> allPixels[(i * step).coerceAtMost(total - 1)] }
+    }
+
     companion object {
-        private const val FPS = 10.0
+        // Bewusst moderat erhöht (vorher 10fps/480px) - mehr bringt bei
+        // diesem absichtlich einfachen Encoder (kein echtes LZW, s.
+        // GifEncoder) überproportional wachsende Dateigrößen, da die
+        // Dateigröße praktisch linear mit Pixelzahl × Framezahl wächst.
+        private const val FPS = 12.0
         private const val CENTISECONDS_PER_FRAME = (100.0 / FPS).toInt()
-        private const val MAX_WIDTH = 480
+        private const val MAX_WIDTH = 540
+        private const val PALETTE_SAMPLES_PER_FRAME = 5000
     }
 }
