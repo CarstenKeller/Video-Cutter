@@ -54,12 +54,22 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 
 ## Phase 2 – Mehrere Videospuren
 
+> **Hinweis für diese Phase:** Der Toolbar-Button "Ausschnitt extrahieren"
+> (Schnellausschnitt, Phase 9) ergibt nur auf der Filmspur Sinn – ein
+> GIF/MP4-Ausschnitt lässt sich nicht sinnvoll aus einer Audio- oder
+> Bildspur extrahieren. Sobald hier mehrere/andere Spurtypen existieren,
+> muss der Button je nach ausgewählter Spur deaktiviert/ausgeblendet
+> werden (nur aktiv, wenn die Filmspur aktiv/ausgewählt ist).
+
 - [ ] Zweite (und weitere) Video-Track(s) hinzufügen
 - [ ] Kompositions-Vorschau (Overlay/Picture-in-Picture) im Player
 - [ ] Track-Steuerung: Sichtbarkeit ein/aus, Reihenfolge/Ebene, stumm schalten
 - [ ] Positionierung/Skalierung von Overlay-Spuren (einfacher Ansatz: vordefinierte Layouts – PiP-Ecke, Split-Screen)
 
 ## Phase 3 – Audiospur
+
+> **Hinweis:** Siehe Phase 2 – "Ausschnitt extrahieren" bleibt auf die
+> Filmspur beschränkt, nicht auf der Audiospur verfügbar.
 
 - [ ] Audiodatei vom Gerät hinzufügen (separate Musikspur)
 - [ ] Audioclip trimmen, verschieben, Lautstärke regeln
@@ -147,6 +157,11 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 > abspielbare GIFs, nur ohne den Dateigrößen-Vorteil von echtem LZW – für
 > kurze/kleine Clips ein akzeptabler Kompromiss gegenüber dem Risiko eines
 > fehlerhaften, nicht testbaren adaptiven Encoders.
+
+> **Einschränkung (Nutzerfeedback):** Macht nur auf der Filmspur Sinn.
+> Aktuell gibt es nur eine Spur (die Filmspur), daher noch kein Problem –
+> sobald Phase 2/3 (mehrere Video-/Audiospuren) umgesetzt sind, muss der
+> Button auf die Filmspur beschränkt werden (siehe Hinweis dort).
 
 - [ ] Neuer Toolbar-Button "Ausschnitt extrahieren" an der aktuellen Abspielposition
 - [ ] Dialog: Längen-Presets (2s/5s/10s), Formatwahl (GIF/MP4, abhängig von Preset), Positions-Schieberegler
