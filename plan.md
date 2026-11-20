@@ -403,3 +403,20 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     war bereits bestätigt funktionsfähig und wurde unverändert gelassen.
   - **Nicht verifiziert:** Erster Durchlauf nach Vorlage, noch nicht auf
     einem echten Gerät getestet.
+- **Zoom-Funktion für den Trimm-Streifen ergänzt (Nutzerfeedback):** Die
+  feste Bildschirmbreite (bewusste Entscheidung gegen absurd breite
+  Streifen, siehe oben) machte es bei längeren Videos schwer, eine
+  genaue Stelle zu treffen - zu wenig Pixel pro Sekunde. Zwei
+  Zoom-Buttons (−/+, Faktor 1,6 pro Stufe, bis 6x) strecken den
+  Streifen über die Bildschirmbreite hinaus; der Bereich wird dann per
+  `horizontalScroll` durchfahren. Beim Zoomen wird automatisch auf die
+  aktuelle Wiedergabeposition zentriert, damit sie nicht aus dem
+  Blickfeld scrollt. Die Trimm-Griffe und der Positionsgriff
+  funktionieren unverändert (sie rechnen bereits generisch mit der
+  jeweils aktuellen Streifenbreite in Pixeln, die jetzt zoomabhängig
+  ist statt fix). Die Anzahl der Vorschaubilder wird mit dem Zoom-Level
+  mitskaliert (10 bis 30), für mehr Detail bei höherer Vergrößerung.
+  **Nicht verifiziert:** insbesondere, ob Ziehen an einem Griff und das
+  Scrollen des Streifens sich nicht gegenseitig stören (beides sind
+  offizielle, zum Verschachteln gedachte Compose-Gesten-APIs, aber ohne
+  Gerät nicht abschließend geprüft).

@@ -146,6 +146,11 @@ ihn als Release-Asset.
   Fehlerquelle erwiesen: absurd breite Streifen bei normal langen
   Videos). Zwei weiße Trimm-Griffe an den Rändern des gewählten
   Bereichs, der Rest wird abgedunkelt.
+- Zwei Zoom-Buttons (−/+, bis 6x) strecken den Streifen über die
+  Bildschirmbreite hinaus und machen ihn per Scrollen durchfahrbar – bei
+  längeren Videos ist eine feste Bildschirmbreite sonst zu ungenau, um
+  eine bestimmte Stelle präzise zu treffen. Beim Zoomen wird automatisch
+  auf die aktuelle Wiedergabeposition zentriert.
 - Ein eigener, ziehbarer Positionsstrich (weiß) scrubbt die Wiedergabe –
   bewusst **kein** "an beliebiger Stelle tippen" mehr, das war in
   früheren Versuchen die Hauptursache für Gesten-Konflikte. Jeder der

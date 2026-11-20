@@ -22,12 +22,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -54,6 +56,8 @@ import kotlinx.coroutines.withContext
 
 private const val FULL_STRIP_THUMBNAILS = 10
 private const val HANDLE_WIDTH_DP = 16
+private const val MAX_ZOOM = 6f
+private const val ZOOM_STEP = 1.6f
 
 /**
  * Zeitleiste. Oben ein einfacher, bewährter Clip-Auswähler (Tippen springt
@@ -170,8 +174,11 @@ private fun ClipChip(
 
 /**
  * Durchgehender Filmstreifen über die komplette Quelldatei des aktiven
- * Clips, bildschirmbreit (konstant, unabhängig von der Videolänge - das
- * macht die Griff-Positionen stabil und vermeidet absurd breite Streifen).
+ * Clips. Ohne Zoom bildschirmbreit (konstant, unabhängig von der
+ * Videolänge - das macht die Griff-Positionen stabil und vermeidet absurd
+ * breite Streifen); über die Zoom-Buttons lässt sich der Streifen bis auf
+ * das Sechsfache strecken und per Scrollen durchfahren, um bei längeren
+ * Videos trotzdem präzise eine Stelle treffen zu können.
  */
 @Composable
 private fun ActiveClipTrimStrip(
@@ -180,108 +187,162 @@ private fun ActiveClipTrimStrip(
     onSeek: (positionInClipUs: Long) -> Unit,
     onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
 ) {
-    val thumbnails = rememberFullSourceThumbnails(clip)
     val latestClip = rememberUpdatedState(clip)
-    var stripWidthPx by remember { mutableStateOf(0f) }
+    var viewportWidthPx by remember { mutableStateOf(0f) }
+    var zoomLevel by remember(clip.id) { mutableStateOf(1f) }
+    val scrollState = rememberScrollState()
     val density = LocalDensity.current
     val handleWidthPx = with(density) { HANDLE_WIDTH_DP.dp.toPx() }
     val playheadWidthPx = with(density) { 4.dp.toPx() }
+    val stripWidthPx = viewportWidthPx * zoomLevel
+    val thumbnails = rememberFullSourceThumbnails(clip, (FULL_STRIP_THUMBNAILS * zoomLevel).roundToInt().coerceIn(FULL_STRIP_THUMBNAILS, 30))
 
     val trimStartFraction = (clip.trimStartUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
     val trimEndFraction = (clip.trimEndUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
     val playheadFraction = ((clip.trimStartUs + playheadPositionUs).toFloat() / clip.sourceDurationUs.toFloat())
         .coerceIn(0f, 1f)
 
+    // Beim Zoomen die aktuelle Wiedergabeposition im sichtbaren Bereich
+    // zentrieren, statt sie aus dem Blickfeld scrollen zu lassen.
+    LaunchedEffect(zoomLevel, viewportWidthPx) {
+        if (viewportWidthPx <= 0f) return@LaunchedEffect
+        val target = (playheadFraction * stripWidthPx - viewportWidthPx / 2f)
+            .roundToInt().coerceIn(0, scrollState.maxValue)
+        scrollState.scrollTo(target)
+    }
+
     Column(Modifier.padding(vertical = 8.dp)) {
-        Text(
-            "Trimmen: %.1fs – %.1fs".format(clip.trimStartUs / 1_000_000f, clip.trimEndUs / 1_000_000f),
-            style = MaterialTheme.typography.bodySmall,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Trimmen: %.1fs – %.1fs".format(clip.trimStartUs / 1_000_000f, clip.trimEndUs / 1_000_000f),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ZoomButton(label = "−", enabled = zoomLevel > 1f) {
+                    zoomLevel = (zoomLevel / ZOOM_STEP).coerceAtLeast(1f)
+                }
+                Text("${zoomLevel.roundToInt()}x", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 4.dp))
+                ZoomButton(label = "+", enabled = zoomLevel < MAX_ZOOM) {
+                    zoomLevel = (zoomLevel * ZOOM_STEP).coerceAtMost(MAX_ZOOM)
+                }
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(80.dp)
                 .padding(top = 4.dp)
-                .onGloballyPositioned { stripWidthPx = it.size.width.toFloat() }
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .onGloballyPositioned { viewportWidthPx = it.size.width.toFloat() }
+                .horizontalScroll(scrollState),
         ) {
-            if (thumbnails.any { it != null }) {
-                Row(modifier = Modifier.fillMaxSize()) {
-                    thumbnails.forEach { bitmap ->
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap,
-                                contentDescription = null,
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                contentScale = ContentScale.Crop,
-                            )
-                        } else {
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant))
+            Box(
+                modifier = Modifier
+                    .width(with(density) { stripWidthPx.toDp() })
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                if (thumbnails.any { it != null }) {
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        thumbnails.forEach { bitmap ->
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = null,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            } else {
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant))
+                            }
                         }
                     }
                 }
-            }
 
-            if (trimStartFraction > 0f) {
-                Box(
-                    Modifier
-                        .align(Alignment.CenterStart)
-                        .fillMaxHeight()
-                        .fillMaxWidth(trimStartFraction)
-                        .background(Color.Black.copy(alpha = 0.6f)),
+                if (trimStartFraction > 0f) {
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxHeight()
+                            .fillMaxWidth(trimStartFraction)
+                            .background(Color.Black.copy(alpha = 0.6f)),
+                    )
+                }
+                if (trimEndFraction < 1f) {
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .fillMaxWidth(1f - trimEndFraction)
+                            .background(Color.Black.copy(alpha = 0.6f)),
+                    )
+                }
+
+                // Positions-Griff: einzige Möglichkeit zu scrubben (bewusst
+                // kein "an beliebiger Stelle tippen" mehr).
+                StripHandle(
+                    xPx = (playheadFraction * stripWidthPx - playheadWidthPx / 2f)
+                        .coerceIn(0f, (stripWidthPx - playheadWidthPx).coerceAtLeast(0f)),
+                    widthDp = 4,
+                    color = Color.White,
+                    stripWidthPx = stripWidthPx,
+                    sourceDurationUs = clip.sourceDurationUs,
+                    getBaseUs = { clip.trimStartUs + playheadPositionUs },
+                    onNewUs = { newSourceUs ->
+                        val newPositionInClipUs = (newSourceUs - latestClip.value.trimStartUs)
+                            .coerceIn(0, latestClip.value.durationUs)
+                        onSeek(newPositionInClipUs)
+                    },
+                )
+
+                // Trimm-Griffe an den Rändern des gewählten Bereichs. Auf
+                // [0, stripWidthPx - handleWidthPx] begrenzt, damit der
+                // Griff nie über den (geclippten) Streifenrand hinausragt -
+                // sonst würde er im Ausgangszustand (kein Trimm) halb
+                // unsichtbar abgeschnitten.
+                StripHandle(
+                    xPx = (trimStartFraction * stripWidthPx - handleWidthPx)
+                        .coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
+                    widthDp = HANDLE_WIDTH_DP,
+                    color = MaterialTheme.colorScheme.primary,
+                    stripWidthPx = stripWidthPx,
+                    sourceDurationUs = clip.sourceDurationUs,
+                    getBaseUs = { clip.trimStartUs },
+                    onNewUs = { newStartUs -> onTrimChange(latestClip.value.id, newStartUs, latestClip.value.trimEndUs) },
+                )
+                StripHandle(
+                    xPx = (trimEndFraction * stripWidthPx).coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
+                    widthDp = HANDLE_WIDTH_DP,
+                    color = MaterialTheme.colorScheme.primary,
+                    stripWidthPx = stripWidthPx,
+                    sourceDurationUs = clip.sourceDurationUs,
+                    getBaseUs = { clip.trimEndUs },
+                    onNewUs = { newEndUs -> onTrimChange(latestClip.value.id, latestClip.value.trimStartUs, newEndUs) },
                 )
             }
-            if (trimEndFraction < 1f) {
-                Box(
-                    Modifier
-                        .align(Alignment.CenterEnd)
-                        .fillMaxHeight()
-                        .fillMaxWidth(1f - trimEndFraction)
-                        .background(Color.Black.copy(alpha = 0.6f)),
-                )
-            }
-
-            // Positions-Griff: einzige Möglichkeit zu scrubben (bewusst kein
-            // "an beliebiger Stelle tippen" mehr).
-            StripHandle(
-                xPx = (playheadFraction * stripWidthPx - playheadWidthPx / 2f)
-                    .coerceIn(0f, (stripWidthPx - playheadWidthPx).coerceAtLeast(0f)),
-                widthDp = 4,
-                color = Color.White,
-                stripWidthPx = stripWidthPx,
-                sourceDurationUs = clip.sourceDurationUs,
-                getBaseUs = { clip.trimStartUs + playheadPositionUs },
-                onNewUs = { newSourceUs ->
-                    val newPositionInClipUs = (newSourceUs - latestClip.value.trimStartUs)
-                        .coerceIn(0, latestClip.value.durationUs)
-                    onSeek(newPositionInClipUs)
-                },
-            )
-
-            // Trimm-Griffe an den Rändern des gewählten Bereichs. Auf
-            // [0, stripWidthPx - handleWidthPx] begrenzt, damit der Griff nie
-            // über den (geclippten) Streifenrand hinausragt - sonst würde er
-            // im Ausgangszustand (kein Trimm) halb unsichtbar abgeschnitten.
-            StripHandle(
-                xPx = (trimStartFraction * stripWidthPx - handleWidthPx).coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
-                widthDp = HANDLE_WIDTH_DP,
-                color = MaterialTheme.colorScheme.primary,
-                stripWidthPx = stripWidthPx,
-                sourceDurationUs = clip.sourceDurationUs,
-                getBaseUs = { clip.trimStartUs },
-                onNewUs = { newStartUs -> onTrimChange(latestClip.value.id, newStartUs, latestClip.value.trimEndUs) },
-            )
-            StripHandle(
-                xPx = (trimEndFraction * stripWidthPx).coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
-                widthDp = HANDLE_WIDTH_DP,
-                color = MaterialTheme.colorScheme.primary,
-                stripWidthPx = stripWidthPx,
-                sourceDurationUs = clip.sourceDurationUs,
-                getBaseUs = { clip.trimEndUs },
-                onNewUs = { newEndUs -> onTrimChange(latestClip.value.id, latestClip.value.trimStartUs, newEndUs) },
-            )
         }
+    }
+}
+
+@Composable
+private fun ZoomButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
+            style = MaterialTheme.typography.titleMedium,
+        )
     }
 }
 
@@ -330,13 +391,13 @@ private fun BoxScope.StripHandle(
     )
 }
 
-/** Lädt eine feste Anzahl Vorschaubilder über die komplette Quelldatei. */
+/** Lädt [count] Vorschaubilder über die komplette Quelldatei (mehr bei höherem Zoom). */
 @Composable
-private fun rememberFullSourceThumbnails(clip: VideoClip): List<ImageBitmap?> {
+private fun rememberFullSourceThumbnails(clip: VideoClip, count: Int): List<ImageBitmap?> {
     val context = LocalContext.current
-    val state = produceState(initialValue = List<ImageBitmap?>(FULL_STRIP_THUMBNAILS) { null }, clip.id) {
+    val state = produceState(initialValue = List<ImageBitmap?>(count) { null }, clip.id, count) {
         value = withContext(Dispatchers.IO) {
-            extractThumbnails(context, clip.sourceUri, clip.sourceDurationUs, FULL_STRIP_THUMBNAILS)
+            extractThumbnails(context, clip.sourceUri, clip.sourceDurationUs, count)
         }
     }
     return state.value
