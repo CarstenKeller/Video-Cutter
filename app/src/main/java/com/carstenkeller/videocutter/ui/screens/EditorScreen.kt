@@ -86,6 +86,19 @@ fun EditorScreen(
     var showQuickExtractDialog by remember { mutableStateOf(false) }
     val addClipLauncher = rememberVideoPickerLauncher(onPicked = timelineViewModel::addClip)
 
+    // Playhead-Position fürs Timeline-Lineal: ExoPlayer liefert keinen
+    // Compose-State für currentPosition, daher wird hier regelmäßig abgefragt
+    // (reicht für eine Positionsanzeige, muss nicht jeden Frame aktuell sein).
+    var playheadClipIndex by remember { mutableStateOf(0) }
+    var playheadPositionUs by remember { mutableStateOf(0L) }
+    LaunchedEffect(player) {
+        while (true) {
+            playheadClipIndex = player.currentMediaItemIndex
+            playheadPositionUs = player.currentPosition * 1000
+            delay(200)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             PlayerPreview(
@@ -110,6 +123,8 @@ fun EditorScreen(
             TimelineView(
                 clips = state.clips,
                 selectedClipId = state.selectedClipId,
+                playheadClipIndex = playheadClipIndex,
+                playheadPositionUs = playheadPositionUs,
                 onSelectClip = { clipId ->
                     timelineViewModel.selectClip(clipId)
                     val index = state.clips.indexOfFirst { it.id == clipId }

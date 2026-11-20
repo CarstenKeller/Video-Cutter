@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -51,13 +52,20 @@ private const val THUMBNAILS_PER_CLIP = 6
 fun TimelineView(
     clips: List<VideoClip>,
     selectedClipId: String?,
+    playheadClipIndex: Int,
+    playheadPositionUs: Long,
     onSelectClip: (String) -> Unit,
     onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
     onMoveClip: (fromIndex: Int, toIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth().padding(8.dp)) {
-        Text("Zeitleiste", style = MaterialTheme.typography.labelLarge)
+        val totalDurationUs = clips.sumOf { it.durationUs }
+        val elapsedUs = clips.take(playheadClipIndex).sumOf { it.durationUs } + playheadPositionUs
+        Text(
+            "Zeitleiste – ${formatTimeMs(elapsedUs / 1000)} / ${formatTimeMs(totalDurationUs / 1000)}",
+            style = MaterialTheme.typography.labelLarge,
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -77,6 +85,8 @@ fun TimelineView(
                     widthDp = widthDp,
                     canMoveLeft = index > 0,
                     canMoveRight = index < clips.lastIndex,
+                    isPlayhead = index == playheadClipIndex,
+                    playheadFraction = (playheadPositionUs.toFloat() / clip.durationUs.toFloat()).coerceIn(0f, 1f),
                     onClick = { onSelectClip(clip.id) },
                     onMoveLeft = { onMoveClip(index, index - 1) },
                     onMoveRight = { onMoveClip(index, index + 1) },
@@ -91,6 +101,11 @@ fun TimelineView(
     }
 }
 
+private fun formatTimeMs(ms: Long): String {
+    val totalSeconds = ms / 1000
+    return "%02d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+}
+
 @Composable
 private fun ClipBlock(
     clip: VideoClip,
@@ -99,6 +114,8 @@ private fun ClipBlock(
     widthDp: Dp,
     canMoveLeft: Boolean,
     canMoveRight: Boolean,
+    isPlayhead: Boolean,
+    playheadFraction: Float,
     onClick: () -> Unit,
     onMoveLeft: () -> Unit,
     onMoveRight: () -> Unit,
@@ -165,6 +182,17 @@ private fun ClipBlock(
             }
         } else if (thumbnails.isEmpty()) {
             Text("Clip ${index + 1}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+
+        if (isPlayhead) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = widthDp * playheadFraction)
+                    .fillMaxHeight()
+                    .width(2.dp)
+                    .background(MaterialTheme.colorScheme.primary),
+            )
         }
     }
 }

@@ -125,5 +125,12 @@ ihn als Release-Asset.
   "Abspielen". **Nicht verifiziert:** Wirkung auf echtem Homescreen/App-
   Drawer noch nicht gegengeprüft.
 
+## Zeitleiste: Positionsanzeige
+
+- Die Zeitleiste zeigt jetzt einen Positionsbalken (Playhead) im aktuell
+  wiedergegebenen Clip-Block sowie "verstrichene Zeit / Gesamtlänge" über
+  der Zeitleiste – vorher war anhand der Clip-Blöcke (reine Thumbnail-
+  Streifen) nicht erkennbar, an welcher Stelle im Video man sich befindet.
+
 Alles Weitere (mehrere Videospuren, Audiospur, Bilder, Übergänge,
 Hintergrund-Ersatz, Undo/Redo etc.) folgt gemäß `plan.md`.

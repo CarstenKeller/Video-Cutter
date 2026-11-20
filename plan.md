@@ -230,3 +230,10 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   und Abspielen symbolisiert. Hintergrundfarbe von `#1E3A5F` auf ein
   kräftigeres `#1565C0` (Blau) umgestellt. Noch nicht auf dem Gerät
   gegengeprüft, wie das Icon auf dem Homescreen tatsächlich wirkt.
+- **Fix (Nutzerfeedback, Gerätetest):** Die Zeitleiste zeigte nirgends an,
+  an welcher Stelle im Video sich die Wiedergabe gerade befindet – ein
+  Clip-Block war nur ein statischer Thumbnail-Streifen ohne Positions-
+  Rückmeldung. Ergänzt: ein sich bewegender Positionsbalken (Playhead) im
+  aktuellen Clip-Block sowie eine Zeitanzeige "verstrichene Zeit /
+  Gesamtlänge" über der Zeitleiste (ExoPlayer-Position wird dafür alle
+  200ms abgefragt, da kein nativer Compose-State dafür existiert).
