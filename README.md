@@ -91,9 +91,13 @@ ihn als Release-Asset.
 ## Phase 9: Schnellausschnitt (GIF/Video-Clip extrahieren)
 
 - Neuer Toolbar-Button an der aktuellen Abspielposition: Längen-Preset
-  wählen (2s/5s/10s), Position per Schieberegler verschieben, als GIF
+  wählen (2s/5s/10s) oder per "Länger…" eine frei wählbare Dauer bis zur
+  vollen Videolänge, Position per Schieberegler verschieben, als GIF
   oder MP4 extrahieren
-- GIF nur bis 5s verfügbar (ab 10s nur MP4), wegen Dateigröße/Performance
+- GIF nur bis 5s verfügbar (ab 10s bzw. bei freier Dauer nur MP4), wegen
+  Dateigröße/Performance
+- Der Ausschnitt greift immer auf die komplette Videospur (Quelldatei) zu,
+  nicht nur auf den aktuell in der Timeline eingestellten Trimm-Bereich
 - MP4-Export nutzt die bestehende Media3-Transformer-Pipeline; GIF-Export
   nutzt einen selbst geschriebenen, bewusst vereinfachten GIF89a-Encoder
   (feste 256-Farben-Palette, keine echte LZW-Kompression – siehe

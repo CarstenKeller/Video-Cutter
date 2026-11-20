@@ -163,6 +163,17 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 > sobald Phase 2/3 (mehrere Video-/Audiospuren) umgesetzt sind, muss der
 > Button auf die Filmspur beschränkt werden (siehe Hinweis dort).
 
+> **Fix (Nutzerfeedback, Gerätetest):** Zwei Probleme behoben.
+> 1. Der Ausschnitt war auf den aktuell in der Timeline eingestellten
+>    Trimm-Bereich des Clips begrenzt, statt auf die komplette Videospur
+>    (Quelldatei) zuzugreifen – jetzt steht dafür immer die volle
+>    Videolänge zur Verfügung, unabhängig vom aktuellen Timeline-Trimm.
+> 2. Für MP4 war die Länge hart auf die Presets 2s/5s/10s begrenzt, ein
+>    längerer Ausschnitt war nicht möglich. Neue Option "Länger…" neben
+>    den Presets: frei wählbare Dauer per Schieberegler bis zur vollen
+>    Videolänge, nur für MP4 (GIF bleibt bei den kurzen Presets wegen
+>    Dateigröße/Performance).
+
 - [ ] Neuer Toolbar-Button "Ausschnitt extrahieren" an der aktuellen Abspielposition
 - [ ] Dialog: Längen-Presets (2s/5s/10s), Formatwahl (GIF/MP4, abhängig von Preset), Positions-Schieberegler
 - [ ] MP4-Export: Wiederverwendung der bestehenden Media3-Transformer-Pipeline (Einzel-Clip mit Trim-Grenzen = Fenster)

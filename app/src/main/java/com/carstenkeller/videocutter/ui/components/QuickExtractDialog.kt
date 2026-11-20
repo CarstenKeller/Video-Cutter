@@ -26,35 +26,50 @@ import com.carstenkeller.videocutter.extract.ExtractFormat
 
 /**
  * Dialog zum Festlegen von Länge, Position und Format eines Schnellausschnitts
- * (GIF oder MP4). [anchorPositionUs] ist die Position, an der der Nutzer in
- * die Timeline/Vorschau getippt hat (relativ zum sichtbaren Clip-Ausschnitt),
- * [clipDurationUs] die Gesamtlänge des sichtbaren Clip-Ausschnitts – beide in
- * Mikrosekunden. [onConfirm] liefert Start/Ende ebenfalls relativ zum
- * sichtbaren Clip-Ausschnitt zurück (der Aufrufer rechnet das bei Bedarf auf
- * absolute Quelldatei-Zeit um).
+ * (GIF oder MP4). Steht gegen die komplette Videospur zur Verfügung (die
+ * gesamte Quelldatei), nicht nur gegen den aktuell in der Timeline
+ * eingestellten Trimm-Ausschnitt – [videoDurationUs] ist daher die
+ * Gesamtlänge der Quelldatei, [anchorPositionUs] die Position, an der der
+ * Nutzer in der Vorschau getippt hat (beide absolut innerhalb der
+ * Quelldatei, in Mikrosekunden). [onConfirm] liefert Start/Ende ebenfalls
+ * als absolute Position innerhalb der Quelldatei zurück.
+ *
+ * Länge ist entweder einer der festen Presets (2s/5s/10s) oder, darüber
+ * hinaus, eine frei wählbare ("Länger…") Dauer bis zur vollen Videolänge –
+ * GIF bleibt dabei bewusst auf die kurzen Presets beschränkt
+ * (Dateigröße/Performance), MP4 erlaubt auch lange, frei gewählte Ausschnitte.
  */
 @Composable
 fun QuickExtractDialog(
-    clipDurationUs: Long,
+    videoDurationUs: Long,
     anchorPositionUs: Long,
     onDismiss: () -> Unit,
     onConfirm: (windowStartUs: Long, windowEndUs: Long, format: ExtractFormat) -> Unit,
 ) {
-    val clipDurationSeconds = (clipDurationUs / 1_000_000f).coerceAtLeast(0.2f)
+    val videoDurationSeconds = (videoDurationUs / 1_000_000f).coerceAtLeast(0.2f)
+    val longPresetSeconds = ExtractDurationPreset.LONG.seconds.toFloat()
+    val customAvailable = videoDurationSeconds > longPresetSeconds
 
-    fun maxStartSeconds(preset: ExtractDurationPreset) =
-        (clipDurationSeconds - preset.seconds).coerceAtLeast(0f)
+    fun maxStartSeconds(durationSeconds: Float) =
+        (videoDurationSeconds - durationSeconds).coerceAtLeast(0f)
 
-    var preset by remember { mutableStateOf(ExtractDurationPreset.MEDIUM) }
+    var preset by remember { mutableStateOf<ExtractDurationPreset?>(ExtractDurationPreset.MEDIUM) }
+    var customDurationSeconds by remember {
+        mutableStateOf(longPresetSeconds.coerceAtMost(videoDurationSeconds))
+    }
     var format by remember { mutableStateOf(ExtractFormat.GIF) }
+
+    val durationSeconds = preset?.seconds?.toFloat() ?: customDurationSeconds
+    val allowsGif = preset?.allowsGif ?: false
+
     var startSeconds by remember {
         mutableStateOf(
             ((anchorPositionUs / 1_000_000f) - ExtractDurationPreset.MEDIUM.seconds / 2f)
-                .coerceIn(0f, maxStartSeconds(ExtractDurationPreset.MEDIUM)),
+                .coerceIn(0f, maxStartSeconds(ExtractDurationPreset.MEDIUM.seconds.toFloat())),
         )
     }
 
-    val endSeconds = (startSeconds + preset.seconds).coerceAtMost(clipDurationSeconds)
+    val endSeconds = (startSeconds + durationSeconds).coerceAtMost(videoDurationSeconds)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -64,14 +79,14 @@ fun QuickExtractDialog(
                 Text("Länge", style = MaterialTheme.typography.labelLarge)
                 Row {
                     ExtractDurationPreset.entries.forEach { option ->
-                        val enabled = option.seconds <= clipDurationSeconds
+                        val enabled = option.seconds <= videoDurationSeconds
                         FilterChip(
                             modifier = Modifier.padding(end = 8.dp),
                             selected = preset == option,
                             enabled = enabled,
                             onClick = {
                                 preset = option
-                                startSeconds = startSeconds.coerceIn(0f, maxStartSeconds(option))
+                                startSeconds = startSeconds.coerceIn(0f, maxStartSeconds(option.seconds.toFloat()))
                                 if (!option.allowsGif && format == ExtractFormat.GIF) {
                                     format = ExtractFormat.MP4
                                 }
@@ -79,13 +94,40 @@ fun QuickExtractDialog(
                             label = { Text("${option.seconds}s") },
                         )
                     }
+                    FilterChip(
+                        selected = preset == null,
+                        enabled = customAvailable,
+                        onClick = {
+                            preset = null
+                            if (format == ExtractFormat.GIF) format = ExtractFormat.MP4
+                            customDurationSeconds = customDurationSeconds.coerceIn(longPresetSeconds, videoDurationSeconds)
+                            startSeconds = startSeconds.coerceIn(0f, maxStartSeconds(customDurationSeconds))
+                        },
+                        label = { Text("Länger…") },
+                    )
+                }
+
+                if (preset == null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Dauer: %.1fs".format(customDurationSeconds),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Slider(
+                        value = customDurationSeconds,
+                        onValueChange = {
+                            customDurationSeconds = it.coerceIn(longPresetSeconds, videoDurationSeconds)
+                            startSeconds = startSeconds.coerceIn(0f, maxStartSeconds(customDurationSeconds))
+                        },
+                        valueRange = longPresetSeconds..videoDurationSeconds.coerceAtLeast(longPresetSeconds + 0.01f),
+                    )
                 }
 
                 Spacer(Modifier.height(12.dp))
                 Text("Format", style = MaterialTheme.typography.labelLarge)
                 Row {
                     ExtractFormat.entries.forEach { option ->
-                        val enabled = option != ExtractFormat.GIF || preset.allowsGif
+                        val enabled = option != ExtractFormat.GIF || allowsGif
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable(enabled = enabled) { format = option },
@@ -95,9 +137,10 @@ fun QuickExtractDialog(
                         }
                     }
                 }
-                if (!preset.allowsGif) {
+                if (!allowsGif) {
+                    val lengthLabel = preset?.let { "${it.seconds}s" } ?: "benutzerdefinierter Länge"
                     Text(
-                        "GIF ist bei ${preset.seconds}s nicht verfügbar (Datei würde zu groß/langsam werden).",
+                        "GIF ist bei $lengthLabel nicht verfügbar (Datei würde zu groß/langsam werden).",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -109,15 +152,15 @@ fun QuickExtractDialog(
                 )
                 Slider(
                     value = startSeconds,
-                    onValueChange = { startSeconds = it.coerceIn(0f, maxStartSeconds(preset)) },
-                    valueRange = 0f..maxStartSeconds(preset).coerceAtLeast(0.01f),
+                    onValueChange = { startSeconds = it.coerceIn(0f, maxStartSeconds(durationSeconds)) },
+                    valueRange = 0f..maxStartSeconds(durationSeconds).coerceAtLeast(0.01f),
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 val startUs = (startSeconds * 1_000_000).toLong()
-                val endUs = ((startSeconds + preset.seconds) * 1_000_000).toLong().coerceAtMost(clipDurationUs)
+                val endUs = ((startSeconds + durationSeconds) * 1_000_000).toLong().coerceAtMost(videoDurationUs)
                 onConfirm(startUs, endUs, format)
             }) { Text("Extrahieren") }
         },

@@ -145,16 +145,16 @@ fun EditorScreen(
         val currentClip = state.clips.getOrNull(index)
         if (currentClip != null) {
             QuickExtractDialog(
-                clipDurationUs = currentClip.durationUs,
-                anchorPositionUs = player.currentPosition * 1000,
+                videoDurationUs = currentClip.sourceDurationUs,
+                anchorPositionUs = currentClip.trimStartUs + player.currentPosition * 1000,
                 onDismiss = { showQuickExtractDialog = false },
                 onConfirm = { windowStartUs, windowEndUs, format ->
                     showQuickExtractDialog = false
                     extractViewModel.startExtract(
                         sourceUri = currentClip.sourceUri,
                         sourceDurationUs = currentClip.sourceDurationUs,
-                        windowStartUs = currentClip.trimStartUs + windowStartUs,
-                        windowEndUs = currentClip.trimStartUs + windowEndUs,
+                        windowStartUs = windowStartUs,
+                        windowEndUs = windowEndUs,
                         format = format,
                     )
                 },
