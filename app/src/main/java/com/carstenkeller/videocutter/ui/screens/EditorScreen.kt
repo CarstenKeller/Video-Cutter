@@ -134,17 +134,8 @@ fun EditorScreen(
 
             TimelineToolbar(
                 exportEnabled = state.clips.isNotEmpty() && exportState !is ExportUiState.Exporting,
-                onSplit = {
-                    val index = player.currentMediaItemIndex
-                    val clip = state.clips.getOrNull(index) ?: return@TimelineToolbar
-                    timelineViewModel.splitClip(clip.id, player.currentPosition * 1000)
-                },
-                onDelete = {
-                    state.clips.getOrNull(playheadClipIndex)?.let { timelineViewModel.deleteClip(it.id) }
-                },
                 onAddClip = addClipLauncher,
                 onRecordClip = onRecordRequested,
-                onQuickExtract = { showQuickExtractDialog = true },
                 onExport = { showExportDialog = true },
             )
 
@@ -155,6 +146,15 @@ fun EditorScreen(
                 onSeek = { index, positionInClipUs -> player.seekTo(index, positionInClipUs / 1000) },
                 onTrimChange = timelineViewModel::updateTrim,
                 onMoveClip = timelineViewModel::moveClip,
+                onSplit = {
+                    val index = player.currentMediaItemIndex
+                    val clip = state.clips.getOrNull(index)
+                    if (clip != null) timelineViewModel.splitClip(clip.id, player.currentPosition * 1000)
+                },
+                onDelete = {
+                    state.clips.getOrNull(playheadClipIndex)?.let { timelineViewModel.deleteClip(it.id) }
+                },
+                onQuickExtract = { showQuickExtractDialog = true },
             )
         }
 

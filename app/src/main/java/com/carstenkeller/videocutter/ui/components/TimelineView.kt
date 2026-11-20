@@ -81,6 +81,9 @@ fun TimelineView(
     onSeek: (clipIndex: Int, positionInClipUs: Long) -> Unit,
     onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
     onMoveClip: (fromIndex: Int, toIndex: Int) -> Unit,
+    onSplit: () -> Unit,
+    onDelete: () -> Unit,
+    onQuickExtract: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth().padding(8.dp)) {
@@ -123,6 +126,19 @@ fun TimelineView(
                 onSeek = { positionInClipUs -> onSeek(playheadClipIndex, positionInClipUs) },
                 onTrimChange = onTrimChange,
             )
+
+            // Aktionen bezogen auf die aktuelle Position/den aktiven Clip -
+            // bewusst direkt an der Zeitleiste statt in einer vom
+            // Bearbeitungskontext getrennten Toolbar (Nutzerwunsch, nach
+            // Vorbild der Galerie-Vorlage).
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                IconActionButton(icon = R.drawable.ic_cut, label = "Schneiden", onClick = onSplit)
+                IconActionButton(icon = R.drawable.ic_delete, label = "Löschen", onClick = onDelete)
+                IconActionButton(icon = R.drawable.ic_gif, label = "Ausschnitt extrahieren", onClick = onQuickExtract)
+            }
         }
     }
 }

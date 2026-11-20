@@ -420,3 +420,18 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   Scrollen des Streifens sich nicht gegenseitig stören (beides sind
   offizielle, zum Verschachteln gedachte Compose-Gesten-APIs, aber ohne
   Gerät nicht abschließend geprüft).
+- **Positionsbezogene Aktionen direkt an die Zeitleiste verschoben
+  (Nutzerwunsch, nach Vorbild der Galerie-Vorlage):** Schneiden, Löschen
+  und Ausschnitt extrahieren funktionierten bereits positionsbezogen
+  (abhängig von der aktuellen Wiedergabeposition/dem aktiven Clip),
+  saßen aber in einer vom Bearbeitungskontext getrennten Toolbar oben.
+  Jetzt direkt unterhalb des Trimm-Streifens, wo sie inhaltlich
+  hingehören. `TimelineToolbar` enthält nur noch projektweite, nicht
+  positionsbezogene Aktionen (Clip hinzufügen, Aufnehmen, Exportieren).
+  Reine Button-Platzierung, keine neue Gesten-Logik - entsprechend
+  geringes Risiko verglichen mit den bisherigen Zeitleiste-Änderungen.
+  **Übergänge zwischen Clips bleiben bewusst unangetastet** - diese
+  Funktion existiert technisch noch gar nicht (siehe Phase 5) und lässt
+  sich nicht einfach "platzieren", sondern müsste erst von Grund auf neu
+  gebaut werden; das verdient einen eigenen, sorgfältig getesteten
+  Durchlauf statt in eine Button-Umsortierung hineingezogen zu werden.

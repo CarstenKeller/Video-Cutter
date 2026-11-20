@@ -160,6 +160,11 @@ ihn als Release-Asset.
   Auswahl-Reihe oberhalb des Trimm-Streifens gewechselt (Tippen +
   Verschieben-Pfeile, kein Ziehen) – diese Interaktion war bereits
   bestätigt funktionsfähig.
+- Unterhalb des Trimm-Streifens: Schneiden, Löschen und Ausschnitt
+  extrahieren – direkt an der Zeitleiste statt in einer getrennten
+  Toolbar, da sie sich ohnehin auf die aktuelle Position/den aktiven
+  Clip beziehen. Die Toolbar oben enthält nur noch projektweite Aktionen
+  (Clip hinzufügen, Aufnehmen, Exportieren).
 - "Löschen" löscht den Clip, in dem sich die Wiedergabeposition gerade
   befindet (keine separate Auswahl nötig).
 - Nach einem Schnitt zeigen beide entstandenen Clips zuverlässig
