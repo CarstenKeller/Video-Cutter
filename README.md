@@ -112,10 +112,13 @@ ihn als Release-Asset.
   `extract/GifEncoder.kt` für die Begründung)
 - Speichern: MP4 im Album „Video Cutter" (Filme), GIF im Album
   „Video Cutter" (Bilder)
-- **Nicht verifiziert:** Der GIF-Encoder wurde Byte für Byte gegen die
-  GIF89a-Spezifikation durchgerechnet, aber nicht auf einem Gerät
-  getestet, ob die erzeugten Dateien von Galerie-Apps korrekt angezeigt
-  werden.
+- **Bug behoben:** Erzeugte GIFs ließen sich nicht abspielen. Ursache:
+  GIF-Decoder erhöhen die LZW-Code-Breite automatisch, sobald ihr intern
+  mitgeführtes Wörterbuch 512 Einträge erreicht (spätestens nach ~250
+  Pixeln) – der Encoder schrieb aber dauerhaft feste 9-Bit-Codes, wodurch
+  Encoder und Decoder bei jedem Bild auseinanderliefen. Behoben durch
+  einen vorsorglichen Clear-Code alle 100 Pixel, der das Decoder-
+  Wörterbuch rechtzeitig zurücksetzt.
 
 ## APK-Größe & App-Icon
 
@@ -153,7 +156,7 @@ ihn als Release-Asset.
   Fehlerquelle erwiesen: absurd breite Streifen bei normal langen
   Videos). Zwei weiße Trimm-Griffe an den Rändern des gewählten
   Bereichs, der Rest wird abgedunkelt.
-- Zwei Zoom-Buttons (−/+, bis 6x) strecken den Streifen über die
+- Zwei Zoom-Buttons (−/+, bis 12x) strecken den Streifen über die
   Bildschirmbreite hinaus und machen ihn per Scrollen durchfahrbar – bei
   längeren Videos ist eine feste Bildschirmbreite sonst zu ungenau, um
   eine bestimmte Stelle präzise zu treffen. Beim Zoomen wird automatisch

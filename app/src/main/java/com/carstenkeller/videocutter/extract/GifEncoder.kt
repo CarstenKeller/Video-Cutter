@@ -16,10 +16,19 @@ import java.io.OutputStream
  *    Reduktion) statt adaptiver Farboptimierung (z. B. NeuQuant) pro Bild.
  * 2. Die LZW-Kompression wird nicht wirklich genutzt: jeder Pixel wird als
  *    eigener, fester 9-Bit-Code geschrieben (kein wachsendes Wörterbuch,
- *    keine Code-Breiten-Anpassung). Das ist technisch weiterhin eine gültige
- *    GIF89a-Bildbeschreibung (die Spezifikation verlangt LZW-Framing, aber
- *    keine tatsächliche Kompression), nur ohne den Dateigrößen-Vorteil von
- *    echtem LZW.
+ *    keine Code-Breiten-Anpassung durch den Encoder selbst). Wichtig dabei:
+ *    ein konformer Decoder baut sein Wörterbuch trotzdem mit (das ist Teil
+ *    des Decoder-Algorithmus, unabhängig davon, welche Codes der Encoder
+ *    tatsächlich benutzt) und erhöht automatisch die Code-Breite, sobald das
+ *    Wörterbuch 512 Einträge erreicht (2^9) - danach erwartet er 10-Bit-Codes.
+ *    Ohne Gegenmaßnahme würden Encoder und Decoder nach spätestens 254
+ *    Pixeln bezüglich der Code-Breite auseinanderlaufen und das Bild wäre ab
+ *    dort unlesbar (genau das war der Fehler in einer früheren Version
+ *    dieser Datei: GIFs mit mehr als rund 250 Pixeln ließen sich nicht
+ *    abspielen). Fix: alle 100 Pixel wird vorsorglich ein Clear-Code
+ *    gesendet, der das Wörterbuch beim Decoder zurücksetzt, bevor die
+ *    kritische Schwelle von 512 Einträgen erreicht wird - der Encoder bleibt
+ *    dadurch dauerhaft bei 9 Bit pro Code.
  *
  * Alle Byte-Layouts (Header, Logical Screen Descriptor, Graphic Control
  * Extension, Image Descriptor, NETSCAPE2.0-Loop-Extension) folgen exakt der
@@ -112,8 +121,14 @@ class GifEncoder(
         packer.writeCode(CLEAR_CODE, CODE_BITS)
         val pixels = IntArray(width * height)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        var codesSinceClear = 0
         for (pixel in pixels) {
+            if (codesSinceClear >= MAX_CODES_BEFORE_CLEAR) {
+                packer.writeCode(CLEAR_CODE, CODE_BITS)
+                codesSinceClear = 0
+            }
             packer.writeCode(paletteIndexFor(pixel), CODE_BITS)
+            codesSinceClear++
         }
         packer.writeCode(END_CODE, CODE_BITS)
         packer.flush()
@@ -143,6 +158,10 @@ class GifEncoder(
         private const val CODE_BITS = 9
         private const val CLEAR_CODE = 256
         private const val END_CODE = 257
+        // Muss deutlich unter 512-258=254 liegen (Marge für abweichende
+        // Decoder-Implementierungsdetails beim genauen Zeitpunkt der
+        // Code-Breiten-Erhöhung).
+        private const val MAX_CODES_BEFORE_CLEAR = 100
         private val TRAILER = byteArrayOf(0x3B)
     }
 }

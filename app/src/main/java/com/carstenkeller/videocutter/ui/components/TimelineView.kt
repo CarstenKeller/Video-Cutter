@@ -57,7 +57,7 @@ import kotlinx.coroutines.withContext
 
 private const val FULL_STRIP_THUMBNAILS = 10
 private const val HANDLE_WIDTH_DP = 16
-private const val MAX_ZOOM = 6f
+private const val MAX_ZOOM = 12f
 private const val ZOOM_STEP = 1.6f
 
 /**

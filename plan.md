@@ -463,3 +463,21 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     Zusammenspiel aus Ziehen des Ausschnitt-Fensters und der
     Dauerschleifen-Wiedergabe wurde nicht auf einem echten Gerät
     getestet.
+- **Schwerwiegender GIF-Encoder-Bug gefunden und behoben (Nutzerfeedback:
+  "das extrahierte GIF lässt sich nicht abspielen"):** Durch genaues
+  Nachrechnen der GIF89a-/LZW-Dekodierregeln (nicht durch Raten)
+  gefunden: Ein konformer GIF-Decoder baut sein LZW-Wörterbuch immer mit,
+  unabhängig davon, welche Codes der Encoder tatsächlich benutzt - und
+  erhöht automatisch die Code-Breite von 9 auf 10 Bit, sobald das
+  Wörterbuch 512 Einträge erreicht (passiert nach spätestens 254
+  verarbeiteten Pixel-Codes). Der bisherige Encoder schrieb aber
+  dauerhaft feste 9-Bit-Codes, ohne das zu berücksichtigen - Encoder und
+  Decoder liefen bei jedem Bild mit mehr als ca. 250 Pixeln (praktisch
+  immer) bezüglich der Bit-Ausrichtung auseinander, das Bild war ab dort
+  unlesbar. Behoben: Alle 100 Pixel wird vorsorglich ein Clear-Code
+  gesendet, der das Decoder-Wörterbuch zurücksetzt, bevor die kritische
+  Schwelle erreicht wird - der Encoder bleibt dadurch dauerhaft bei 9 Bit
+  pro Code, keine strukturelle Änderung am bewusst vereinfachten Ansatz
+  nötig.
+- **Zoom-Maximum auf 12x erhöht** (Nutzerfeedback: "muss mindestens bis
+  10 gehen"), vorher 6x.
