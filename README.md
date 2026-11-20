@@ -132,34 +132,29 @@ ihn als Release-Asset.
   "Abspielen". **Nicht verifiziert:** Wirkung auf echtem Homescreen/App-
   Drawer noch nicht gegengeprüft.
 
-## Zeitleiste: Positionsanzeige, Scrubben, Trimmen per Griff
+## Zeitleiste
 
-- Gut sichtbarer Positionsbalken (Playhead, weiß mit schwarzer Außenlinie)
-  im aktuell wiedergegebenen Clip-Block sowie eine große Zeitanzeige
-  "Position: mm:ss / mm:ss" über der Zeitleiste.
-- Tippen auf einen Clip-Block springt im Video an diese Stelle.
-- Trimmen geschieht direkt auf der Zeitleiste über zwei Zieh-Griffe am
-  Rand des aktiven Clip-Blocks, nicht mehr über einen separaten Regler.
+> **Kurskorrektur:** Mehrere Versuche, Tippen-zum-Springen und Trimmen per
+> Zieh-Griff direkt auf der Zeitleiste umzusetzen, haben sich im
+> Gerätetest als unzuverlässig erwiesen (ohne echtes Gerät lässt sich
+> Compose-Gesten-/Layout-Verhalten nicht abschließend verifizieren).
+> Bewusst zurückgestellt auf die einfache, zuvor bewährte Bedienung.
+
+- Tippen auf einen Clip-Block springt im Video an dessen Anfang und
+  macht ihn zum aktiven Clip.
+- Trimmen über einen `RangeSlider` unterhalb der Zeitleiste, für den
+  Clip, in dem sich die Wiedergabeposition gerade befindet.
 - "Löschen" löscht den Clip, in dem sich die Wiedergabeposition gerade
-  befindet (keine separate Auswahl mehr nötig).
-- Jeder Block ist proportional zur *getrimmten* Clip-Länge breit (nicht
-  zur vollen Quelllänge – ein Zwischenstand hatte das versucht, was bei
-  normal langen Videos absurd breite Blöcke erzeugte und Position/Schnitt
-  praktisch unsichtbar machte).
-- **Bekannte Einschränkung:** Der linke Trimm-Griff bleibt beim Ziehen
-  optisch an Ort und Stelle (Row-Layout schrumpft Elemente nur von
-  rechts sichtbar) – die Trimm-Geste selbst funktioniert trotzdem
-  korrekt, nur die visuelle Rückmeldung ist nicht pixelgenau.
+  befindet (keine separate Auswahl nötig).
+- Positionsbalken (Playhead, weiß mit schwarzer Außenlinie) im aktuellen
+  Clip-Block sowie eine Zeitanzeige "Position: mm:ss / mm:ss".
 - Nach einem Schnitt zeigen beide entstandenen Clips zuverlässig
   unterschiedliche Vorschaubilder (Bug behoben: nur eine Hälfte bekam
   beim Schneiden eine neue Clip-Id, wodurch Thumbnails teils veraltet
   oder – bei fehlgeschlagener Frame-Extraktion – als ein einziges, über
   die ganze Blockbreite gestrecktes Bild angezeigt wurden).
-- Trimm-Griffe nutzen jetzt die offizielle `Modifier.draggable()`-API
-  statt handgeschriebener Gesten-Erkennung, Treffer-Bereich vergrößert.
-- **Nicht verifiziert:** Die Geste-Ebenen (Tippen, Trimm-Griffe,
-  Verschieben-Pfeile) sind nach gängigen Compose-Mustern geschichtet,
-  aber nicht auf einem echten Gerät getestet.
+- **Nicht verifiziert:** Die aktuelle, bewusst einfach gehaltene Fassung
+  ist noch nicht erneut auf einem echten Gerät bestätigt.
 
 Alles Weitere (mehrere Videospuren, Audiospur, Bilder, Übergänge,
 Hintergrund-Ersatz, Undo/Redo etc.) folgt gemäß `plan.md`.

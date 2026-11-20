@@ -6,14 +6,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,13 +22,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,10 +36,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -53,25 +47,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val THUMBNAILS_PER_CLIP = 6
-private const val TRIM_HANDLE_WIDTH_DP = 20
 
 /**
- * Zeitleiste. Jeder Block ist proportional zur *getrimmten* Clip-Länge breit
- * (nicht zur vollen Quelllänge) - eine frühere Variante zeigte die komplette
- * Quelldatei pro Block an, was bei normal langen Videos absurd breite,
- * kaum noch nutzbare Blöcke ergab (60s Quelle -> ~3600dp) und dadurch
- * Positionsbalken/Schnitte praktisch unsichtbar machte. Die Trimm-Griffe
- * sitzen deshalb schlicht an den beiden Rändern des Blocks (Start=0%,
- * Ende=100% der getrimmten Länge per Definition); einzige bekannte
- * Einschränkung: Da ein Row-Layout ein Element nur von rechts sichtbar
- * schrumpft/wächst, bleibt der linke Griff beim Ziehen optisch an Ort und
- * Stelle, während der Block sich dahinter verkleinert/vergrößert - die
- * Geste selbst (Fingerbewegung -> Trimm-Wert) funktioniert trotzdem korrekt.
- *
- * Tippen auf einen Block springt im Video an diese Stelle (Scrubben). Der
- * Clip, in dem sich die Wiedergabeposition gerade befindet, gilt als "aktiv"
- * (Trimm-Griffe, Verschieben-Pfeile) - es gibt bewusst keine davon
- * unabhängige Auswahl mehr (siehe TimelineViewModel).
+ * Zeitleiste - bewusst auf einfache, bewährte Bausteine zurückgestellt
+ * (Tippen zum Springen an den Clip-Anfang, Trimmen über einen separaten
+ * Regler) statt komplexer Gesten direkt auf der Zeitleiste (Tippen-an-
+ * beliebiger-Stelle, Zieh-Griffe am Blockrand): diese hatten sich in der
+ * Praxis als unzuverlässig erwiesen und ließen sich ohne echtes Gerät nicht
+ * zuverlässig weiterentwickeln. Standardfunktionalität zuerst, Komfort-
+ * Gesten erst wieder, wenn diese Basis stabil bestätigt ist.
  */
 @Composable
 fun TimelineView(
@@ -110,12 +94,16 @@ fun TimelineView(
                     canMoveLeft = index > 0,
                     canMoveRight = index < clips.lastIndex,
                     playheadFraction = (playheadPositionUs.toFloat() / clip.durationUs.toFloat()).coerceIn(0f, 1f),
-                    onSeek = { fraction -> onSeek(index, (fraction * clip.durationUs).toLong()) },
-                    onTrimChange = onTrimChange,
+                    onClick = { onSeek(index, 0L) },
                     onMoveLeft = { onMoveClip(index, index - 1) },
                     onMoveRight = { onMoveClip(index, index + 1) },
                 )
             }
+        }
+
+        val activeClip = clips.getOrNull(playheadClipIndex)
+        if (activeClip != null) {
+            TrimControls(clip = activeClip, onTrimChange = onTrimChange)
         }
     }
 }
@@ -134,13 +122,11 @@ private fun ClipBlock(
     canMoveLeft: Boolean,
     canMoveRight: Boolean,
     playheadFraction: Float,
-    onSeek: (fraction: Float) -> Unit,
-    onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
+    onClick: () -> Unit,
     onMoveLeft: () -> Unit,
     onMoveRight: () -> Unit,
 ) {
     val thumbnails = rememberClipThumbnails(clip)
-    val latestClip = rememberUpdatedState(clip)
 
     Box(
         modifier = Modifier
@@ -155,19 +141,14 @@ private fun ClipBlock(
                 ),
                 RoundedCornerShape(8.dp),
             )
-            .pointerInput(index) {
-                detectTapGestures(
-                    onTap = { offset -> onSeek((offset.x / size.width.toFloat()).coerceIn(0f, 1f)) },
-                )
-            },
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         if (thumbnails.any { it != null }) {
             // Immer THUMBNAILS_PER_CLIP gleich breite Slots, auch wenn
             // einzelne Frames nicht extrahiert werden konnten (Platzhalter
             // statt die erfolgreichen Bilder über die ganze Blockbreite zu
-            // strecken - sonst wirkt ein einzelner erfolgreich geladener
-            // Frame wie ein einziges, absurd vergrößertes Bild).
+            // strecken).
             Row(modifier = Modifier.fillMaxSize()) {
                 thumbnails.forEach { bitmap ->
                     if (bitmap != null) {
@@ -217,9 +198,6 @@ private fun ClipBlock(
                 )
             }
 
-            // Gut sichtbarer Positionsbalken (Playhead) - deutlich breiter und
-            // mit Außenlinie, damit er auch auf hellen/dunklen Thumbnails nicht
-            // untergeht (eine reine 2dp-Primärfarblinie war zu unauffällig).
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -229,80 +207,15 @@ private fun ClipBlock(
                     .background(Color.White)
                     .border(BorderStroke(1.dp, Color.Black)),
             )
-
-            TrimHandle(
-                alignment = Alignment.CenterStart,
-                currentValueUs = { latestClip.value.trimStartUs },
-                otherBoundaryUs = { latestClip.value.trimEndUs },
-                durationUsAtDragStart = { latestClip.value.durationUs },
-                widthDp = widthDp,
-                onNewTrim = { newStartUs, trimEndUs -> onTrimChange(latestClip.value.id, newStartUs, trimEndUs) },
-            )
-            TrimHandle(
-                alignment = Alignment.CenterEnd,
-                currentValueUs = { latestClip.value.trimEndUs },
-                otherBoundaryUs = { latestClip.value.trimStartUs },
-                durationUsAtDragStart = { latestClip.value.durationUs },
-                widthDp = widthDp,
-                onNewTrim = { newEndUs, trimStartUs -> onTrimChange(latestClip.value.id, trimStartUs, newEndUs) },
-            )
         }
     }
 }
 
 /**
- * Trimm-Griff am Rand ([alignment] CenterStart oder CenterEnd) des aktiven
- * Blocks. [currentValueUs] liefert bei Gesten-Start den zu verändernden
- * Grenzwert (Start oder Ende), [otherBoundaryUs] die jeweils andere,
- * unveränderte Grenze (live, für den onNewTrim-Aufruf). Die Verschiebung
- * wird relativ zum bei Gesten-Start gesicherten Wert aufsummiert, damit sie
- * nicht pro Frame erneut auf den sich ändernden Live-Wert aufaddiert wird.
- */
-@Composable
-private fun BoxScope.TrimHandle(
-    alignment: Alignment,
-    currentValueUs: () -> Long,
-    otherBoundaryUs: () -> Long,
-    durationUsAtDragStart: () -> Long,
-    widthDp: Dp,
-    onNewTrim: (newValueUs: Long, otherBoundaryUs: Long) -> Unit,
-) {
-    val density = LocalDensity.current
-    var baseValueUs by remember { mutableStateOf(0L) }
-    var pxPerUs by remember { mutableStateOf(0f) }
-    var accumulatedPx by remember { mutableStateOf(0f) }
-    val dragState = rememberDraggableState { delta ->
-        accumulatedPx += delta
-        val deltaUs = (accumulatedPx / pxPerUs).toLong()
-        onNewTrim(baseValueUs + deltaUs, otherBoundaryUs())
-    }
-
-    Box(
-        modifier = Modifier
-            .align(alignment)
-            .fillMaxHeight()
-            .width(TRIM_HANDLE_WIDTH_DP.dp)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
-            .draggable(
-                state = dragState,
-                orientation = Orientation.Horizontal,
-                onDragStarted = {
-                    baseValueUs = currentValueUs()
-                    val widthPx = with(density) { widthDp.toPx() }
-                    pxPerUs = widthPx / durationUsAtDragStart().coerceAtLeast(1)
-                    accumulatedPx = 0f
-                },
-            ),
-    )
-}
-
-/**
- * Lädt eine feste Anzahl Vorschaubilder für den *getrimmten* Ausschnitt des
+ * Lädt eine feste Anzahl Vorschaubilder für den getrimmten Ausschnitt des
  * Clips. Wird bewusst nur bei neuer Clip-Id neu berechnet (nicht bei jeder
- * Trimm-Änderung), damit das Ziehen am Trimm-Griff nicht durch wiederholte
- * Frame-Extraktion ruckelt - und damit zwei durch einen Schnitt entstandene
- * Clips sichtbar unterschiedliche Thumbnails zeigen (unterschiedlicher
- * Zeitbereich), statt beide dieselbe Vorschau der vollen Quelldatei.
+ * Trimm-Änderung), damit das Ziehen am Trimm-Regler nicht durch wiederholte
+ * Frame-Extraktion ruckelt.
  */
 @Composable
 private fun rememberClipThumbnails(clip: VideoClip): List<ImageBitmap?> {
@@ -332,5 +245,34 @@ private fun extractThumbnails(context: Context, clip: VideoClip, count: Int): Li
         List(count) { null }
     } finally {
         retriever.release()
+    }
+}
+
+@Composable
+private fun TrimControls(
+    clip: VideoClip,
+    onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
+) {
+    val durationSeconds = (clip.sourceDurationUs / 1_000_000f).coerceAtLeast(0.2f)
+    var range by remember(clip.id) {
+        mutableStateOf((clip.trimStartUs / 1_000_000f)..(clip.trimEndUs / 1_000_000f))
+    }
+    Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Text(
+            "Trimmen: %.1fs – %.1fs".format(range.start, range.endInclusive),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        RangeSlider(
+            value = range,
+            onValueChange = { newRange ->
+                range = newRange
+                onTrimChange(
+                    clip.id,
+                    (newRange.start * 1_000_000).toLong(),
+                    (newRange.endInclusive * 1_000_000).toLong(),
+                )
+            },
+            valueRange = 0f..durationSeconds,
+        )
     }
 }

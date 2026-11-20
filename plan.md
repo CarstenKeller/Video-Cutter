@@ -348,3 +348,30 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     behebt, muss der nächste Gerätetest zeigen - ohne Laufzeitzugriff auf
     ein echtes Gerät lässt sich Gesten-Verhalten nicht abschließend
     verifizieren.
+- **Kurskorrektur nach wiederholt fehlgeschlagenen Gesten-Fixes
+  (Nutzerfeedback: "absoluter Murks, kein bisschen besser"):** Vier
+  Iterationen in Folge (0cf4cd9 → c875cd6 → 8eada7b → a0daa0f) haben das
+  Problem mit komplexen, nur anhand von Compose-Quellcode-Kenntnis
+  entworfenen Zeitleiste-Gesten (Tippen-an-beliebiger-Stelle, Zieh-Griffe
+  direkt auf dem Clip-Block) nicht zuverlässig gelöst - ohne echtes Gerät
+  lässt sich Gesten-/Layout-Verhalten in Compose nicht abschließend
+  verifizieren, und das wiederholte Raten hat Zeit des Nutzers gekostet,
+  ohne den eigentlichen Wunsch ("erst einmal Standardfunktionalität wie
+  bei jeder Android-Videobearbeitung") zu erfüllen.
+  - **Entscheidung:** Zurück auf die bewährte, vor dieser Session
+    funktionierende Bedienung: Tippen auf einen Clip-Block springt an
+    dessen Anfang (statt an eine beliebige, aus der Tipp-Position
+    berechnete Stelle), Trimmen erfolgt wieder über einen separaten
+    `RangeSlider` unterhalb der Zeitleiste (statt Zieh-Griffe direkt am
+    Blockrand) - für den Clip, in dem sich die Wiedergabeposition gerade
+    befindet. Alle Zieh-Gesten-Experimente (`Modifier.draggable`,
+    Tipp-Fraktion-Berechnung) entfernt.
+  - **Beibehalten**, da laut Nutzer tatsächlich bestätigt funktionierend:
+    Schneiden und Löschen am Playhead statt separater Auswahl, die
+    Thumbnail-Korrektheit-Fixes (beide Hälften neue Clip-Id,
+    Platzhalter-Kacheln statt Strecken) und der Fix gegen den
+    Rücksprung-zum-Anfang bei jeder Änderung.
+  - Komfort-Gesten direkt auf der Zeitleiste (präzises Scrubben per Tipp,
+    Trimmen per Zieh-Griff) bleiben als mögliche spätere Verbesserung
+    vorgemerkt, aber erst, wenn die Standardfunktionalität auf einem
+    echten Gerät als stabil bestätigt ist.
