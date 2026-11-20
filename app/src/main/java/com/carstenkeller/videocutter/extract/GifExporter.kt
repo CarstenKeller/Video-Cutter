@@ -96,13 +96,19 @@ class GifExporter(private val context: Context) {
     }
 
     companion object {
-        // Bewusst moderat erhöht (vorher 10fps/480px) - mehr bringt bei
-        // diesem absichtlich einfachen Encoder (kein echtes LZW, s.
-        // GifEncoder) überproportional wachsende Dateigrößen, da die
-        // Dateigröße praktisch linear mit Pixelzahl × Framezahl wächst.
-        private const val FPS = 12.0
+        // Zurückgesetzt auf die vorherigen, bestätigt funktionierenden Werte
+        // (Nutzerfeedback: "kein animiertes gif mehr exportiert" nach der
+        // Erhöhung auf 12fps/540px). Die Median-Cut-Palette selbst ändert
+        // an der Dateigröße nichts (weiterhin exakt 9 Bit pro Pixel, nur mit
+        // besser gewählten Farben) - Verdacht liegt auf der zusätzlichen
+        // Erhöhung von Auflösung/Bildrate, die bei diesem absichtlich
+        // einfachen Encoder (kein echtes LZW, s. GifEncoder) die Dateigröße
+        // weiter in die Höhe getrieben haben könnte, bis manche Viewer-Apps
+        // sie nicht mehr animiert anzeigen. **Nicht verifiziert** - lässt
+        // sich nur durch erneuten Test auf dem Gerät bestätigen.
+        private const val FPS = 10.0
         private const val CENTISECONDS_PER_FRAME = (100.0 / FPS).toInt()
-        private const val MAX_WIDTH = 540
+        private const val MAX_WIDTH = 480
         private const val PALETTE_SAMPLES_PER_FRAME = 5000
     }
 }

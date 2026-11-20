@@ -647,3 +647,22 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     verifiziert:** Ob diese Werte in der Praxis die richtige Balance
     zwischen Qualität und Dateigröße treffen - lässt sich nur mit
     echten Exporten auf dem Gerät beurteilen.
+  - **Zurückgenommen (Nutzerfeedback): "kein animiertes gif mehr
+    exportiert".** Die Erhöhung auf 12fps/540px wurde wieder auf die
+    vorherigen, bestätigt funktionierenden Werte (10fps/480px)
+    zurückgesetzt. Die Median-Cut-Palette selbst wurde vorab per
+    eigenständigem Python-Nachbau derselben Baum-Logik gegen mehrere
+    Grenzfälle geprüft (zufällige Pixel, fast nur ein Farbton, leere
+    Stichprobe, Pixel außerhalb der Stichprobe) - keine Endlosschleife,
+    kein außerhalb des gültigen Bereichs liegender Index, durchgängig
+    Baumtiefe 8 wie erwartet; die Quantisierungslogik selbst ist damit
+    nicht die wahrscheinliche Ursache. Verdacht: die zusätzliche
+    Auflösungs-/Bildraten-Erhöhung hat die (bei diesem Encoder ohnehin
+    schon große) Datei weiter aufgebläht, bis manche Viewer-Apps sie
+    nicht mehr animiert, sondern nur noch als Standbild anzeigen - ein
+    bekanntes Verhalten vieler Galerie-/Viewer-Apps bei sehr großen
+    GIFs. **Nicht verifiziert:** Das ist eine Vermutung, keine
+    bestätigte Fehlerursache - muss der Nutzer erneut auf dem Gerät
+    prüfen (inkl. ob das Problem schon bei einem kleineren Ausschnitt
+    oder erst bei längeren Clips auftritt, und ob es am Anzeigen in
+    einer bestimmten App liegt).

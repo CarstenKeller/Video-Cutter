@@ -110,8 +110,11 @@ ihn als Release-Asset.
   nutzt einen selbst geschriebenen, bewusst vereinfachten GIF89a-Encoder
   (keine echte LZW-Kompression – siehe `extract/GifEncoder.kt` für die
   Begründung), aber mit echter Median-Cut-Farbpalette statt einer festen
-  Farbaufteilung (siehe `extract/MedianCutPalette.kt`), 12 fps und
-  540px maximaler Breite
+  Farbaufteilung (siehe `extract/MedianCutPalette.kt`), 10 fps und
+  480px maximaler Breite (eine kurze Erhöhung auf 12fps/540px wurde
+  nach Nutzerfeedback "kein animiertes gif mehr exportiert" wieder
+  zurückgenommen, vermutlich zu große Dateien für manche Viewer-Apps –
+  nicht abschließend verifiziert)
 - Speichern: MP4 im Album „Video Cutter" (Filme), GIF im Album
   „Video Cutter" (Bilder)
 - **Bug behoben:** Erzeugte GIFs ließen sich nicht abspielen. Ursache:
