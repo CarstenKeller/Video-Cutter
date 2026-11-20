@@ -22,10 +22,13 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.carstenkeller.videocutter.export.ExportUiState
 import com.carstenkeller.videocutter.export.ExportViewModel
+import com.carstenkeller.videocutter.extract.ExtractUiState
+import com.carstenkeller.videocutter.extract.ExtractViewModel
 import com.carstenkeller.videocutter.timeline.TimelineViewModel
 import com.carstenkeller.videocutter.ui.components.ExportDialog
 import com.carstenkeller.videocutter.ui.components.ExportProgressOverlay
 import com.carstenkeller.videocutter.ui.components.PlayerPreview
+import com.carstenkeller.videocutter.ui.components.QuickExtractDialog
 import com.carstenkeller.videocutter.ui.components.TimelineToolbar
 import com.carstenkeller.videocutter.ui.components.TimelineView
 import com.carstenkeller.videocutter.ui.components.rememberVideoPickerLauncher
@@ -44,6 +47,8 @@ fun EditorScreen(
     val state by timelineViewModel.state.collectAsState()
     val exportViewModel: ExportViewModel = viewModel()
     val exportState by exportViewModel.uiState.collectAsState()
+    val extractViewModel: ExtractViewModel = viewModel()
+    val extractState by extractViewModel.uiState.collectAsState()
 
     val player = remember { ExoPlayer.Builder(context).build() }
     DisposableEffect(Unit) {
@@ -78,6 +83,7 @@ fun EditorScreen(
     }
 
     var showExportDialog by remember { mutableStateOf(false) }
+    var showQuickExtractDialog by remember { mutableStateOf(false) }
     val addClipLauncher = rememberVideoPickerLauncher(onPicked = timelineViewModel::addClip)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -97,6 +103,7 @@ fun EditorScreen(
                 onDelete = { state.selectedClipId?.let(timelineViewModel::deleteClip) },
                 onAddClip = addClipLauncher,
                 onRecordClip = onRecordRequested,
+                onQuickExtract = { showQuickExtractDialog = true },
                 onExport = { showExportDialog = true },
             )
 
@@ -117,6 +124,10 @@ fun EditorScreen(
         if (currentExportState is ExportUiState.Exporting) {
             ExportProgressOverlay(progress = currentExportState.progress)
         }
+        val currentExtractState = extractState
+        if (currentExtractState is ExtractUiState.Extracting) {
+            ExportProgressOverlay(progress = currentExtractState.progress)
+        }
     }
 
     if (showExportDialog) {
@@ -129,6 +140,28 @@ fun EditorScreen(
         )
     }
 
+    if (showQuickExtractDialog) {
+        val index = player.currentMediaItemIndex
+        val currentClip = state.clips.getOrNull(index)
+        if (currentClip != null) {
+            QuickExtractDialog(
+                clipDurationUs = currentClip.durationUs,
+                anchorPositionUs = player.currentPosition * 1000,
+                onDismiss = { showQuickExtractDialog = false },
+                onConfirm = { windowStartUs, windowEndUs, format ->
+                    showQuickExtractDialog = false
+                    extractViewModel.startExtract(
+                        sourceUri = currentClip.sourceUri,
+                        sourceDurationUs = currentClip.sourceDurationUs,
+                        windowStartUs = currentClip.trimStartUs + windowStartUs,
+                        windowEndUs = currentClip.trimStartUs + windowEndUs,
+                        format = format,
+                    )
+                },
+            )
+        }
+    }
+
     LaunchedEffect(exportState) {
         when (val current = exportState) {
             is ExportUiState.Success -> {
@@ -138,6 +171,20 @@ fun EditorScreen(
             is ExportUiState.Error -> {
                 Toast.makeText(context, current.message, Toast.LENGTH_LONG).show()
                 exportViewModel.consumeMessage()
+            }
+            else -> Unit
+        }
+    }
+
+    LaunchedEffect(extractState) {
+        when (val current = extractState) {
+            is ExtractUiState.Success -> {
+                Toast.makeText(context, current.message, Toast.LENGTH_LONG).show()
+                extractViewModel.consumeMessage()
+            }
+            is ExtractUiState.Error -> {
+                Toast.makeText(context, current.message, Toast.LENGTH_LONG).show()
+                extractViewModel.consumeMessage()
             }
             else -> Unit
         }

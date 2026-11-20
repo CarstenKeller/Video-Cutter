@@ -130,6 +130,31 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 - [ ] Fortschrittsanzeige (kann je nach Cliplänge mehrere Sekunden bis Minuten dauern)
 - [ ] Bekannte Einschränkung: feste Ausgabe-Framerate (siehe Implementierung), nicht zwingend identisch zur Quell-Framerate
 
+## Phase 9 – Schnellausschnitt: GIF/Video-Clip extrahieren
+
+> Nutzerwunsch: An der aktuellen Abspielposition einen Ausschnitt fester
+> Länge auswählen, auf der Zeitachse verschieben, dann als GIF oder MP4
+> exportieren. Geklärt: Dauer-Presets 2s/5s/10s; GIF nur bis 5s verfügbar,
+> ab 10s nur noch MP4 (Dateigröße/Performance).
+
+> **Technische Entscheidung:** Android hat keine eingebaute GIF-Kodierung.
+> Statt eines komplexen adaptiven LZW-Encoders (hohes Risiko für subtile
+> Fehler, die sich hier nicht testen lassen) wird ein bewusst vereinfachter,
+> aber korrekter GIF89a-Encoder eingesetzt: feste 256-Farben-Palette
+> (3-3-2-Bit-Reduktion, keine adaptive Farboptimierung) und "LZW ohne echte
+> Kompression" (jeder Pixel ein eigener fester 9-Bit-Code, kein wachsendes
+> Wörterbuch). Ergebnis: garantiert spezifikationskonforme, korrekt
+> abspielbare GIFs, nur ohne den Dateigrößen-Vorteil von echtem LZW – für
+> kurze/kleine Clips ein akzeptabler Kompromiss gegenüber dem Risiko eines
+> fehlerhaften, nicht testbaren adaptiven Encoders.
+
+- [ ] Neuer Toolbar-Button "Ausschnitt extrahieren" an der aktuellen Abspielposition
+- [ ] Dialog: Längen-Presets (2s/5s/10s), Formatwahl (GIF/MP4, abhängig von Preset), Positions-Schieberegler
+- [ ] MP4-Export: Wiederverwendung der bestehenden Media3-Transformer-Pipeline (Einzel-Clip mit Trim-Grenzen = Fenster)
+- [ ] GIF-Export: eigener, vereinfachter GIF89a-Encoder (siehe oben), Frames per `MediaMetadataRetriever`, feste 10 fps, max. Breite 480px
+- [ ] Speichern: MP4 im bestehenden Album "Video Cutter" (Filme), GIF analog in "Video Cutter" (Bilder/`image/gif`)
+- [ ] Fortschrittsanzeige (Wiederverwendung von `ExportProgressOverlay`)
+
 ---
 
 ## Fortschritt

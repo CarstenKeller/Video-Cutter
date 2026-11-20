@@ -41,4 +41,32 @@ object MediaStoreSaver {
 
         return itemUri
     }
+
+    /**
+     * Speichert eine Bilddatei (z. B. ein exportiertes GIF) im öffentlichen
+     * Album "Video Cutter" innerhalb der Pictures-Sammlung des Geräts.
+     */
+    fun saveImageToAlbum(context: Context, sourceFile: File, displayName: String, mimeType: String = "image/gif"): Uri {
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+            put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+            put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/$ALBUM_NAME")
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+
+        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val itemUri = resolver.insert(collection, values)
+            ?: error("MediaStore-Eintrag konnte nicht erstellt werden")
+
+        resolver.openOutputStream(itemUri)?.use { out ->
+            sourceFile.inputStream().use { input -> input.copyTo(out) }
+        } ?: error("Ausgabestream konnte nicht geöffnet werden")
+
+        values.clear()
+        values.put(MediaStore.Images.Media.IS_PENDING, 0)
+        resolver.update(itemUri, values, null, null)
+
+        return itemUri
+    }
 }

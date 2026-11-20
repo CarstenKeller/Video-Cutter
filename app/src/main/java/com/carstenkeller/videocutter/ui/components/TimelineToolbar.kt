@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Gif
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideoLibrary
@@ -23,6 +24,7 @@ fun TimelineToolbar(
     onDelete: () -> Unit,
     onAddClip: () -> Unit,
     onRecordClip: () -> Unit,
+    onQuickExtract: () -> Unit,
     onExport: () -> Unit,
 ) {
     Row(
@@ -36,6 +38,7 @@ fun TimelineToolbar(
         IconActionButton(icon = Icons.Filled.Delete, label = "Löschen", onClick = onDelete)
         IconActionButton(icon = Icons.Filled.VideoLibrary, label = "Clip hinzufügen", onClick = onAddClip)
         IconActionButton(icon = Icons.Filled.Videocam, label = "Aufnehmen", onClick = onRecordClip)
+        IconActionButton(icon = Icons.Filled.Gif, label = "Ausschnitt extrahieren", onClick = onQuickExtract)
         IconActionButton(icon = Icons.Filled.Save, label = "Exportieren", onClick = onExport, enabled = exportEnabled)
     }
 }

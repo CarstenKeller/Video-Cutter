@@ -88,5 +88,22 @@ ihn als Release-Asset.
   (kein Kamerahardware auf dem Build-Runner) – nur ein echter Gerätetest
   zeigt, ob Aufnahme/Vorschau/Speichern zuverlässig funktionieren.
 
+## Phase 9: Schnellausschnitt (GIF/Video-Clip extrahieren)
+
+- Neuer Toolbar-Button an der aktuellen Abspielposition: Längen-Preset
+  wählen (2s/5s/10s), Position per Schieberegler verschieben, als GIF
+  oder MP4 extrahieren
+- GIF nur bis 5s verfügbar (ab 10s nur MP4), wegen Dateigröße/Performance
+- MP4-Export nutzt die bestehende Media3-Transformer-Pipeline; GIF-Export
+  nutzt einen selbst geschriebenen, bewusst vereinfachten GIF89a-Encoder
+  (feste 256-Farben-Palette, keine echte LZW-Kompression – siehe
+  `extract/GifEncoder.kt` für die Begründung)
+- Speichern: MP4 im Album „Video Cutter" (Filme), GIF im Album
+  „Video Cutter" (Bilder)
+- **Nicht verifiziert:** Der GIF-Encoder wurde Byte für Byte gegen die
+  GIF89a-Spezifikation durchgerechnet, aber nicht auf einem Gerät
+  getestet, ob die erzeugten Dateien von Galerie-Apps korrekt angezeigt
+  werden.
+
 Alles Weitere (mehrere Videospuren, Audiospur, Bilder, Übergänge,
 Hintergrund-Ersatz, Undo/Redo etc.) folgt gemäß `plan.md`.
