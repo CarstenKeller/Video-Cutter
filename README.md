@@ -165,9 +165,11 @@ ihn als Release-Asset.
   schrumpft nicht mehr, wenn darunter zusätzliche Bedienelemente (z. B.
   das Schnellausschnitt-Panel) eingeblendet werden – dieser Bereich
   scrollt bei Bedarf stattdessen selbst.
-- Die Vorschaubilder im Filmstreifen bleiben beim Zoomen gleich groß
-  (mehrere Kacheln zeigen bei hohem Zoom dasselbe extrahierte
-  Einzelbild, statt wenige Bilder zunehmend breiter zu strecken).
+- Die Vorschaubilder im Filmstreifen behalten das Bildformat des
+  Videos (Kachelbreite = Kachelhöhe × tatsächliches Seitenverhältnis,
+  nicht mehr verzerrt) und bleiben beim Zoomen gleich groß; beim Zoomen
+  wächst stattdessen die Anzahl der Kacheln (mehrere zeigen dann
+  dasselbe extrahierte Einzelbild) und damit auch die Scrollstrecke.
 - Ein eigener, ziehbarer Positionsstrich (weiß) scrubbt die Wiedergabe –
   bewusst **kein** "an beliebiger Stelle tippen" mehr, das war in
   früheren Versuchen die Hauptursache für Gesten-Konflikte. Jeder der

@@ -559,3 +559,34 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     * zoomLevel`, günstig - mehrere Kacheln zeigen bei hohem Zoom
     dasselbe Einzelbild); über `weight(1f)` bleibt jede Kachel dadurch
     rechnerisch exakt bildschirmbreite/10 breit, unabhängig vom Zoom.
+  - **Nachbesserung zum vorherigen Punkt: Kachel-Breite war weiterhin
+    falsch, weil `FULL_STRIP_THUMBNAILS = 10` eine willkürliche, vom
+    Videoformat unabhängige Zahl war** (Nutzerfeedback: "du presst das
+    Video in der Ganzen Länge in eine Bildschirmbreite. Die Thumbnails
+    sind dadurch 4x so hoch wie breit. Die Thumbnails müssen im
+    Bildformat des Videos bleiben"). Der vorherige Fix hat zwar
+    erfolgreich verhindert, dass Kacheln beim Zoomen größer *werden*,
+    aber die Basis-Kachelbreite (bildschirmbreite/10) hatte nie etwas mit
+    dem tatsächlichen Seitenverhältnis des Videos zu tun - bei normalen
+    Formaten (16:9, 9:16) waren die Kacheln dadurch immer schon verzerrt,
+    nicht erst beim Zoomen. Jetzt wird die Kachel-Breite aus dem
+    tatsächlichen Bildformat abgeleitet (Breite/Höhe des ersten geladenen
+    Vorschaubilds, Fallback 16:9 bis das erste Bild geladen ist) mal
+    fester Streifenhöhe (`STRIP_HEIGHT_DP = 80`) - jede Kachel behält so
+    ihr korrektes Seitenverhältnis. Die Streifenbreite bleibt bewusst
+    weiterhin bildschirmbreite × Zoom (nicht an die Videolänge gekoppelt
+    - das war die ursprüngliche, mehrfach bestätigte Fehlerquelle);
+    lediglich die *Anzahl* der (jetzt seitenverhältnis-treuen) Kacheln
+    darin ergibt sich daraus, wächst also mit dem Zoom mit - genau wie
+    vom Nutzer gewünscht ("Beim zoom nimmt die Anzahl der Thumbnails
+    einfach zu und die Scrollstrecke... nimmt zu"). Da die Kachelbreite
+    jetzt eine bewusst feste Pixelgröße ist (nicht mehr `weight(1f)`),
+    kann am rechten Rand des Streifens eine letzte, nur teilweise
+    gefüllte (durch den Streifen-Rahmen abgeschnittene) Kachel entstehen
+    - das ist in Kauf genommen, da die Alternative (Kacheln wieder
+    verzerren, um exakt aufzugehen) genau das wäre, was hier behoben
+    wurde. **Nicht verifiziert:** Ob `MediaMetadataRetriever.getFrameAtTime`
+    das Seitenverhältnis in allen Rotationsfällen (insbesondere bei
+    Hochformat-Aufnahmen mit Rotations-Metadaten) korrekt wiedergibt -
+    das lässt sich nur auf dem echten Gerät mit echten Testvideos
+    verifizieren.

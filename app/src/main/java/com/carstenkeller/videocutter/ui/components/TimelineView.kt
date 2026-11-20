@@ -55,11 +55,12 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private const val FULL_STRIP_THUMBNAILS = 10
 private const val THUMBNAIL_EXTRACT_COUNT = 40
+private const val STRIP_HEIGHT_DP = 80
 private const val HANDLE_WIDTH_DP = 16
 private const val MAX_ZOOM = 60f
 private const val ZOOM_STEP = 1.6f
+private const val FALLBACK_ASPECT_RATIO = 16f / 9f
 
 /**
  * Zeitleiste. Oben ein einfacher, bewährter Clip-Auswähler (Tippen springt
@@ -204,13 +205,28 @@ private fun ActiveClipTrimStrip(
     val playheadWidthPx = with(density) { 4.dp.toPx() }
     val stripWidthPx = viewportWidthPx * zoomLevel
     // Feste, von Zoom unabhängige Anzahl tatsächlich extrahierter Einzelbilder
-    // (teuer: ein MediaMetadataRetriever-Seek pro Bild) - die Anzahl der
-    // *angezeigten* Kacheln skaliert dagegen mit dem Zoom (s. u.), sodass die
-    // einzelnen Kacheln beim Reinzoomen nicht größer werden (Nutzerfeedback:
-    // "Wenn ich reinzoome werden die thumbnails größer. Sie sollten gleich
-    // groß bleiben."), auch wenn mehrere Kacheln dasselbe Einzelbild zeigen.
+    // (teuer: ein MediaMetadataRetriever-Seek pro Bild) - mehrere angezeigte
+    // Kacheln können bei hohem Zoom auf dasselbe Einzelbild zeigen (s. u.).
     val thumbnails = rememberFullSourceThumbnails(clip, THUMBNAIL_EXTRACT_COUNT)
-    val totalThumbnailSlots = (FULL_STRIP_THUMBNAILS * zoomLevel).roundToInt().coerceAtLeast(1)
+
+    // Kachel-Breite aus dem tatsächlichen Bildformat des Videos ableiten
+    // (anhand der Maße des ersten geladenen Frames) statt einer festen Anzahl
+    // Kacheln pro Bildschirmbreite - sonst würde bei normalen Videoformaten
+    // (z. B. 16:9 oder 9:16) die komplette Videolänge in eine Bildschirmbreite
+    // gepresst und jede Kachel dadurch stark verzerrt (viel zu schmal/hoch)
+    // (Nutzerfeedback: "Die Thumbnails sind dadurch 4x so hoch wie breit...
+    // müssen im Bildformat des Videos bleiben"). Die Streifenbreite selbst
+    // bleibt bewusst unverändert bildschirmbreite*Zoom (nicht an die
+    // Videolänge gekoppelt - frühere Fehlerquelle), nur die Anzahl der
+    // Kacheln darin ergibt sich jetzt aus deren fester, seitenverhältnis-
+    // treuer Breite: beim Zoomen wächst die Streifenbreite, also auch die
+    // Kachel-Anzahl und die nötige Scrollstrecke (genau wie gewünscht).
+    val tileHeightPx = with(density) { STRIP_HEIGHT_DP.dp.toPx() }
+    val videoAspectRatio = thumbnails.firstNotNullOfOrNull { it }
+        ?.let { it.width.toFloat() / it.height.toFloat() }
+        ?: FALLBACK_ASPECT_RATIO
+    val tileWidthPx = tileHeightPx * videoAspectRatio
+    val totalThumbnailSlots = (stripWidthPx / tileWidthPx).roundToInt().coerceAtLeast(1)
 
     val trimStartFraction = (clip.trimStartUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
     val trimEndFraction = (clip.trimEndUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
@@ -249,7 +265,7 @@ private fun ActiveClipTrimStrip(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp)
+                .height(STRIP_HEIGHT_DP.dp)
                 .padding(top = 4.dp)
                 .onGloballyPositioned { viewportWidthPx = it.size.width.toFloat() }
                 .horizontalScroll(scrollState),
@@ -262,24 +278,28 @@ private fun ActiveClipTrimStrip(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 if (thumbnails.any { it != null }) {
-                    Row(modifier = Modifier.fillMaxSize()) {
+                    val tileWidthDp = with(density) { tileWidthPx.toDp() }
+                    Row(modifier = Modifier.fillMaxHeight()) {
                         repeat(totalThumbnailSlots) { slot ->
                             // Mehrere Kacheln können auf dasselbe extrahierte
-                            // Einzelbild zeigen (siehe Kommentar oben) - die
-                            // Kachel-Breite bleibt über weight(1f) trotzdem
-                            // exakt konstant (keine Rundungsfehler durch
-                            // dp-Umrechnung bei hunderten Kacheln).
+                            // Einzelbild zeigen (s. Kommentar oben); jede Kachel
+                            // hat eine feste, seitenverhältnis-treue Breite -
+                            // am rechten Rand kann dadurch eine letzte, nur
+                            // teilweise gefüllte Kachel entstehen (abgeschnitten
+                            // durch den Clip des äußeren Streifens), das ist
+                            // hier bewusst in Kauf genommen statt die Kacheln
+                            // wieder zu verzerren.
                             val thumbnailIndex = (slot * thumbnails.size / totalThumbnailSlots).coerceIn(0, thumbnails.size - 1)
                             val bitmap = thumbnails[thumbnailIndex]
                             if (bitmap != null) {
                                 Image(
                                     bitmap = bitmap,
                                     contentDescription = null,
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    modifier = Modifier.width(tileWidthDp).fillMaxHeight(),
                                     contentScale = ContentScale.Crop,
                                 )
                             } else {
-                                Box(modifier = Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant))
+                                Box(modifier = Modifier.width(tileWidthDp).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant))
                             }
                         }
                     }
