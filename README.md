@@ -134,15 +134,22 @@ ihn als Release-Asset.
 
 ## Zeitleiste: Positionsanzeige, Scrubben, Trimmen per Griff
 
-- Positionsbalken (Playhead) im aktuell wiedergegebenen Clip-Block sowie
-  "verstrichene Zeit / Gesamtlänge" über der Zeitleiste.
+- Gut sichtbarer Positionsbalken (Playhead, weiß mit schwarzer Außenlinie)
+  im aktuell wiedergegebenen Clip-Block sowie eine große Zeitanzeige
+  "Position: mm:ss / mm:ss" über der Zeitleiste.
 - Tippen auf einen Clip-Block springt im Video an diese Stelle.
 - Trimmen geschieht direkt auf der Zeitleiste über zwei Zieh-Griffe am
   Rand des aktiven Clip-Blocks, nicht mehr über einen separaten Regler.
-  Jeder Block zeigt dafür immer die komplette Quelldatei; der Bereich
-  außerhalb des Trimm-Fensters wird abgedunkelt.
 - "Löschen" löscht den Clip, in dem sich die Wiedergabeposition gerade
   befindet (keine separate Auswahl mehr nötig).
+- Jeder Block ist proportional zur *getrimmten* Clip-Länge breit (nicht
+  zur vollen Quelllänge – ein Zwischenstand hatte das versucht, was bei
+  normal langen Videos absurd breite Blöcke erzeugte und Position/Schnitt
+  praktisch unsichtbar machte).
+- **Bekannte Einschränkung:** Der linke Trimm-Griff bleibt beim Ziehen
+  optisch an Ort und Stelle (Row-Layout schrumpft Elemente nur von
+  rechts sichtbar) – die Trimm-Geste selbst funktioniert trotzdem
+  korrekt, nur die visuelle Rückmeldung ist nicht pixelgenau.
 - **Nicht verifiziert:** Die Geste-Ebenen (Tippen, Trimm-Griffe,
   Verschieben-Pfeile) sind nach gängigen Compose-Mustern geschichtet,
   aber nicht auf einem echten Gerät getestet.

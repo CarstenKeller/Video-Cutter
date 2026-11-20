@@ -276,13 +276,8 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   - Trimmen geschieht jetzt direkt auf der Zeitleiste über zwei
     Zieh-Griffe am Rand des aktiven Clip-Blocks statt über einen
     separaten Regler unterhalb des Videos (`TrimControls`/`RangeSlider`
-    entfernt). Jeder Block zeigt dafür immer die komplette Quelldatei in
-    konstanter Breite, der Bereich außerhalb des Trimm-Fensters wird
-    abgedunkelt – eine breiten-proportionale Darstellung (Blockbreite
-    abhängig von der Trimm-Länge) hätte dazu geführt, dass sich in der
-    Row-Anordnung beim Verkleinern nur der rechte Blockrand visuell
-    bewegt, nie der linke, was den linken Trimm-Griff optisch in die
-    falsche Richtung hätte laufen lassen.
+    entfernt). Die Griffe sitzen an den Blockrändern (Start/Ende sind per
+    Definition 0%/100% der getrimmten Länge).
   - "Löschen" löscht jetzt den Clip, in dem sich die Wiedergabeposition
     gerade befindet (nicht mehr eine separate Auswahl) – das bisherige
     `selectedClipId`-Feld in `TimelineState`/`TimelineViewModel` wurde
@@ -302,3 +297,28 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     echten Gerät getestet werden – insbesondere ob sich Tippen und
     Trimm-Griffe nicht gegenseitig stören, muss der nächste Gerätetest
     zeigen.
+  - **Bekannte Einschränkung:** Da ein Row-Layout ein Element nur von
+    rechts sichtbar schrumpft/wächst, bleibt der linke Trimm-Griff beim
+    Ziehen optisch an Ort und Stelle, während sich der Block dahinter
+    verkleinert/vergrößert. Die Geste (Fingerbewegung → Trimm-Wert)
+    funktioniert trotzdem korrekt, nur die visuelle Rückmeldung ist nicht
+    perfekt 1:1. Eine pixelgenaue Lösung bräuchte ein eigenes,
+    nicht-flow-basiertes Layout – als mögliche Folgeverbesserung
+    vorgemerkt, falls sich das im Gerätetest als störend erweist.
+- **Regression gefunden und behoben (Nutzerfeedback: "kann ich immer noch
+  nicht erkennen, wo ich bin"):** Ein Zwischenstand dieser Überarbeitung
+  (Commit `c875cd6`) hatte Blockbreite auf die volle Quelllänge
+  umgestellt (um das linke-Trimm-Griff-Problem oben "richtig" zu lösen),
+  mit abgedunkeltem Bereich außerhalb des Trimm-Fensters. Das hat bei
+  normal langen Videos absurd breite Blöcke erzeugt (z. B. 60s Quelle →
+  ca. 3600dp breiter Block), wodurch Positionsbalken und Schnitte
+  praktisch unsichtbar bzw. weggescrollt waren – das war die eigentliche
+  Ursache für "ich erkenne meine Position nicht" und "den Schnitt kann
+  ich kaum erkennen". Zurückgesetzt auf Blockbreite = getrimmte Länge
+  (siehe oben); Thumbnails werden wieder aus dem getrimmten Bereich des
+  jeweiligen Clips extrahiert (nicht aus der vollen Quelldatei), damit
+  zwei durch einen Schnitt entstandene Clips wieder sichtbar
+  unterschiedliche Vorschaubilder zeigen. Positionsbalken zusätzlich
+  deutlich auffälliger gemacht (4dp, weiß mit schwarzer Außenlinie statt
+  2dp Primärfarbe) und die Zeitanzeige über der Zeitleiste vergrößert
+  ("Position: mm:ss / mm:ss", `titleMedium` statt `labelLarge`).
