@@ -425,13 +425,41 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   und Ausschnitt extrahieren funktionierten bereits positionsbezogen
   (abhängig von der aktuellen Wiedergabeposition/dem aktiven Clip),
   saßen aber in einer vom Bearbeitungskontext getrennten Toolbar oben.
-  Jetzt direkt unterhalb des Trimm-Streifens, wo sie inhaltlich
-  hingehören. `TimelineToolbar` enthält nur noch projektweite, nicht
-  positionsbezogene Aktionen (Clip hinzufügen, Aufnehmen, Exportieren).
-  Reine Button-Platzierung, keine neue Gesten-Logik - entsprechend
-  geringes Risiko verglichen mit den bisherigen Zeitleiste-Änderungen.
+  Zunächst unterhalb des Trimm-Streifens platziert.
+  **Korrektur (Folgefeedback):** Das verteilte Buttons auf zwei Stellen
+  (oberhalb + unterhalb der Zeitleiste). Zurückgesetzt auf eine
+  gemeinsame Toolbar oberhalb der Zeitleiste mit allen sechs Buttons
+  (Schneiden, Löschen, Clip hinzufügen, Aufnehmen, Ausschnitt
+  extrahieren, Exportieren) - entspricht dem Nutzerwunsch "alle
+  oberhalb".
   **Übergänge zwischen Clips bleiben bewusst unangetastet** - diese
   Funktion existiert technisch noch gar nicht (siehe Phase 5) und lässt
   sich nicht einfach "platzieren", sondern müsste erst von Grund auf neu
   gebaut werden; das verdient einen eigenen, sorgfältig getesteten
   Durchlauf statt in eine Button-Umsortierung hineingezogen zu werden.
+- **Schnellausschnitt vollständig in die Hauptseite integriert
+  (Nutzerwunsch, wie ursprünglich beschrieben):** Der separate Dialog
+  (`QuickExtractDialog`) ist entfernt. Stattdessen:
+  - "Ausschnitt extrahieren" öffnet ein `ExtractControls`-Panel direkt
+    auf der Hauptseite (Längen-Presets 2s/5s/10s/"Länger…", Format
+    GIF/MP4 mit denselben Verfügbarkeitsregeln wie zuvor).
+  - Auf dem Trimm-Streifen erscheint statt der zwei Trimm-Griffe ein
+    einzelnes, durchsichtig hervorgehobenes Ausschnitt-Fenster fester
+    Länge (`ExtractWindow`), das als Ganzes gezogen wird (nicht an
+    Rändern skaliert, da die Länge über die Längenauswahl feststeht).
+  - Solange das Fenster aktiv ist, läuft die Wiedergabe nur innerhalb
+    des Fensters in Dauerschleife (die bestehende 200ms-Positions-
+    Abfrage prüft zusätzlich, ob die Position das Fenster verlassen hat,
+    und springt dann an den Fensteranfang zurück).
+  - Nach dem Extrahieren (Tippen auf "Extrahieren") schließt sich das
+    Panel, das Fenster verschwindet und die Zeitleiste zeigt wieder den
+    normalen Positions-/Trimm-Modus - wie beschrieben ("Markierung
+    wechselt wieder in den Positionsmodus").
+  - Wiederverwendet dieselbe, bereits bewährte Zieh-Griff-Technik
+    (`Modifier.draggable()`, fester Pixel-pro-Mikrosekunde-Faktor dank
+    konstanter Streifenbreite) wie die Trimm-Griffe - kein neues
+    Gesten-Muster, nur ein weiterer Anwendungsfall davon.
+  - **Nicht verifiziert:** Erster Durchlauf, insbesondere das
+    Zusammenspiel aus Ziehen des Ausschnitt-Fensters und der
+    Dauerschleifen-Wiedergabe wurde nicht auf einem echten Gerät
+    getestet.

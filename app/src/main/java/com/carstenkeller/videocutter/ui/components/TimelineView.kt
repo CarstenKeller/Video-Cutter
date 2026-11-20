@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.carstenkeller.videocutter.R
+import com.carstenkeller.videocutter.extract.ExtractWindow
 import com.carstenkeller.videocutter.timeline.VideoClip
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -81,9 +82,8 @@ fun TimelineView(
     onSeek: (clipIndex: Int, positionInClipUs: Long) -> Unit,
     onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
     onMoveClip: (fromIndex: Int, toIndex: Int) -> Unit,
-    onSplit: () -> Unit,
-    onDelete: () -> Unit,
-    onQuickExtract: () -> Unit,
+    extractWindow: ExtractWindow?,
+    onExtractWindowMove: (newStartUs: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth().padding(8.dp)) {
@@ -125,20 +125,9 @@ fun TimelineView(
                 playheadPositionUs = playheadPositionUs,
                 onSeek = { positionInClipUs -> onSeek(playheadClipIndex, positionInClipUs) },
                 onTrimChange = onTrimChange,
+                extractWindow = extractWindow,
+                onExtractWindowMove = onExtractWindowMove,
             )
-
-            // Aktionen bezogen auf die aktuelle Position/den aktiven Clip -
-            // bewusst direkt an der Zeitleiste statt in einer vom
-            // Bearbeitungskontext getrennten Toolbar (Nutzerwunsch, nach
-            // Vorbild der Galerie-Vorlage).
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                IconActionButton(icon = R.drawable.ic_cut, label = "Schneiden", onClick = onSplit)
-                IconActionButton(icon = R.drawable.ic_delete, label = "Löschen", onClick = onDelete)
-                IconActionButton(icon = R.drawable.ic_gif, label = "Ausschnitt extrahieren", onClick = onQuickExtract)
-            }
         }
     }
 }
@@ -202,6 +191,8 @@ private fun ActiveClipTrimStrip(
     playheadPositionUs: Long,
     onSeek: (positionInClipUs: Long) -> Unit,
     onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
+    extractWindow: ExtractWindow?,
+    onExtractWindowMove: (newStartUs: Long) -> Unit,
 ) {
     val latestClip = rememberUpdatedState(clip)
     var viewportWidthPx by remember { mutableStateOf(0f) }
@@ -315,30 +306,50 @@ private fun ActiveClipTrimStrip(
                     },
                 )
 
-                // Trimm-Griffe an den Rändern des gewählten Bereichs. Auf
-                // [0, stripWidthPx - handleWidthPx] begrenzt, damit der
-                // Griff nie über den (geclippten) Streifenrand hinausragt -
-                // sonst würde er im Ausgangszustand (kein Trimm) halb
-                // unsichtbar abgeschnitten.
-                StripHandle(
-                    xPx = (trimStartFraction * stripWidthPx - handleWidthPx)
-                        .coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
-                    widthDp = HANDLE_WIDTH_DP,
-                    color = MaterialTheme.colorScheme.primary,
-                    stripWidthPx = stripWidthPx,
-                    sourceDurationUs = clip.sourceDurationUs,
-                    getBaseUs = { clip.trimStartUs },
-                    onNewUs = { newStartUs -> onTrimChange(latestClip.value.id, newStartUs, latestClip.value.trimEndUs) },
-                )
-                StripHandle(
-                    xPx = (trimEndFraction * stripWidthPx).coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
-                    widthDp = HANDLE_WIDTH_DP,
-                    color = MaterialTheme.colorScheme.primary,
-                    stripWidthPx = stripWidthPx,
-                    sourceDurationUs = clip.sourceDurationUs,
-                    getBaseUs = { clip.trimEndUs },
-                    onNewUs = { newEndUs -> onTrimChange(latestClip.value.id, latestClip.value.trimStartUs, newEndUs) },
-                )
+                if (extractWindow == null) {
+                    // Trimm-Griffe an den Rändern des gewählten Bereichs. Auf
+                    // [0, stripWidthPx - handleWidthPx] begrenzt, damit der
+                    // Griff nie über den (geclippten) Streifenrand hinausragt
+                    // - sonst würde er im Ausgangszustand (kein Trimm) halb
+                    // unsichtbar abgeschnitten.
+                    StripHandle(
+                        xPx = (trimStartFraction * stripWidthPx - handleWidthPx)
+                            .coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
+                        widthDp = HANDLE_WIDTH_DP,
+                        color = MaterialTheme.colorScheme.primary,
+                        stripWidthPx = stripWidthPx,
+                        sourceDurationUs = clip.sourceDurationUs,
+                        getBaseUs = { clip.trimStartUs },
+                        onNewUs = { newStartUs -> onTrimChange(latestClip.value.id, newStartUs, latestClip.value.trimEndUs) },
+                    )
+                    StripHandle(
+                        xPx = (trimEndFraction * stripWidthPx).coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
+                        widthDp = HANDLE_WIDTH_DP,
+                        color = MaterialTheme.colorScheme.primary,
+                        stripWidthPx = stripWidthPx,
+                        sourceDurationUs = clip.sourceDurationUs,
+                        getBaseUs = { clip.trimEndUs },
+                        onNewUs = { newEndUs -> onTrimChange(latestClip.value.id, latestClip.value.trimStartUs, newEndUs) },
+                    )
+                } else {
+                    // Schnellausschnitt-Fenster fester Länge: als Ganzes
+                    // ziehbar (nicht an einzelnen Rändern), da die Länge
+                    // bereits über die Längenauswahl feststeht - genau wie
+                    // vom Nutzer beschrieben ("Ausschnitt auf der Zeitleiste
+                    // verschieben").
+                    val windowFraction = extractWindow.durationUs.toFloat() / clip.sourceDurationUs.toFloat()
+                    val windowStartFraction = (extractWindow.startUs.toFloat() / clip.sourceDurationUs.toFloat())
+                        .coerceIn(0f, (1f - windowFraction).coerceAtLeast(0f))
+                    ExtractWindowHandle(
+                        xPx = windowStartFraction * stripWidthPx,
+                        widthPx = (windowFraction * stripWidthPx).coerceAtLeast(1f),
+                        stripWidthPx = stripWidthPx,
+                        sourceDurationUs = clip.sourceDurationUs,
+                        windowDurationUs = extractWindow.durationUs,
+                        getBaseStartUs = { extractWindow.startUs },
+                        onNewStartUs = onExtractWindowMove,
+                    )
+                }
             }
         }
     }
@@ -401,6 +412,51 @@ private fun BoxScope.StripHandle(
                 orientation = Orientation.Horizontal,
                 onDragStarted = {
                     baseUs = getBaseUs()
+                    accumulatedPx = 0f
+                },
+            ),
+    )
+}
+
+/**
+ * Durchsichtig hervorgehobenes Schnellausschnitt-Fenster fester Breite
+ * [widthPx], das als Ganzes gezogen werden kann (verschiebt
+ * [ExtractWindow.startUs], ändert nie die Länge). Auf
+ * [0, sourceDurationUs - windowDurationUs] begrenzt.
+ */
+@Composable
+private fun BoxScope.ExtractWindowHandle(
+    xPx: Float,
+    widthPx: Float,
+    stripWidthPx: Float,
+    sourceDurationUs: Long,
+    windowDurationUs: Long,
+    getBaseStartUs: () -> Long,
+    onNewStartUs: (Long) -> Unit,
+) {
+    var baseUs by remember { mutableStateOf(0L) }
+    var accumulatedPx by remember { mutableStateOf(0f) }
+    val pxPerUs = stripWidthPx / sourceDurationUs.coerceAtLeast(1)
+    val maxStartUs = (sourceDurationUs - windowDurationUs).coerceAtLeast(0)
+    val dragState = rememberDraggableState { delta ->
+        accumulatedPx += delta
+        onNewStartUs((baseUs + (accumulatedPx / pxPerUs).toLong()).coerceIn(0, maxStartUs))
+    }
+    val density = LocalDensity.current
+
+    Box(
+        modifier = Modifier
+            .align(Alignment.CenterStart)
+            .offset { IntOffset(xPx.roundToInt(), 0) }
+            .fillMaxHeight()
+            .width(with(density) { widthPx.toDp() })
+            .border(BorderStroke(3.dp, MaterialTheme.colorScheme.tertiary))
+            .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f))
+            .draggable(
+                state = dragState,
+                orientation = Orientation.Horizontal,
+                onDragStarted = {
+                    baseUs = getBaseStartUs()
                     accumulatedPx = 0f
                 },
             ),

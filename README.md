@@ -90,10 +90,17 @@ ihn als Release-Asset.
 
 ## Phase 9: Schnellausschnitt (GIF/Video-Clip extrahieren)
 
-- Neuer Toolbar-Button an der aktuellen Abspielposition: Längen-Preset
-  wählen (2s/5s/10s) oder per "Länger…" eine frei wählbare Dauer bis zur
-  vollen Videolänge, Position per Schieberegler verschieben, als GIF
-  oder MP4 extrahieren
+- Toolbar-Button "Ausschnitt extrahieren" öffnet ein Panel direkt auf der
+  Hauptseite (kein Dialog mehr): Längen-Preset wählen (2s/5s/10s) oder
+  per "Länger…" eine frei wählbare Dauer bis zur vollen Videolänge, dazu
+  GIF/MP4 als Format.
+- Die Position des Ausschnitts wird nicht per Regler, sondern direkt auf
+  der Zeitleiste festgelegt: ein durchsichtig hervorgehobenes Fenster
+  fester Länge, das sich als Ganzes ziehen lässt.
+- Solange das Fenster aktiv ist, spielt die Vorschau nur den Inhalt des
+  Fensters in Dauerschleife. Nach dem Extrahieren schließt sich das
+  Panel und die Zeitleiste zeigt wieder den normalen Positions-/
+  Trimm-Modus.
 - GIF ist bei allen drei Presets (2s/5s/10s) möglich, nur bei frei
   gewählter Dauer über 10s hinaus ("Länger…") nur noch MP4, wegen
   Dateigröße/Performance
@@ -160,11 +167,9 @@ ihn als Release-Asset.
   Auswahl-Reihe oberhalb des Trimm-Streifens gewechselt (Tippen +
   Verschieben-Pfeile, kein Ziehen) – diese Interaktion war bereits
   bestätigt funktionsfähig.
-- Unterhalb des Trimm-Streifens: Schneiden, Löschen und Ausschnitt
-  extrahieren – direkt an der Zeitleiste statt in einer getrennten
-  Toolbar, da sie sich ohnehin auf die aktuelle Position/den aktiven
-  Clip beziehen. Die Toolbar oben enthält nur noch projektweite Aktionen
-  (Clip hinzufügen, Aufnehmen, Exportieren).
+- Alle Funktionsbuttons (Schneiden, Löschen, Clip hinzufügen, Aufnehmen,
+  Ausschnitt extrahieren, Exportieren) sitzen gemeinsam in einer Toolbar
+  oberhalb der Zeitleiste – nicht auf zwei Stellen verteilt.
 - "Löschen" löscht den Clip, in dem sich die Wiedergabeposition gerade
   befindet (keine separate Auswahl nötig).
 - Nach einem Schnitt zeigen beide entstandenen Clips zuverlässig
