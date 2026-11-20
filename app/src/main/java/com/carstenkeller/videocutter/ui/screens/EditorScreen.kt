@@ -4,7 +4,11 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -154,87 +158,95 @@ fun EditorScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Feste Höhe (Seitenverhältnis statt weight(1f)): die Vorschau
+            // darf nicht schrumpfen, wenn der Ausschnitt-Bereich darunter
+            // wächst (z. B. bei aktivem Schnellausschnitt-Panel) - stattdessen
+            // scrollt der Bereich darunter bei Bedarf.
             PlayerPreview(
                 player = player,
-                modifier = Modifier.weight(1f).background(Color.Black),
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black),
             )
 
-            TimelineToolbar(
-                exportEnabled = state.clips.isNotEmpty() && exportState !is ExportUiState.Exporting,
-                onSplit = {
-                    val index = player.currentMediaItemIndex
-                    val clip = state.clips.getOrNull(index)
-                    if (clip != null) timelineViewModel.splitClip(clip.id, player.currentPosition * 1000)
-                },
-                onDelete = {
-                    state.clips.getOrNull(playheadClipIndex)?.let { timelineViewModel.deleteClip(it.id) }
-                },
-                onAddClip = addClipLauncher,
-                onRecordClip = onRecordRequested,
-                onQuickExtract = {
-                    val clip = state.clips.getOrNull(playheadClipIndex)
-                    if (clip != null) {
-                        val centerUs = clip.trimStartUs + playheadPositionUs
-                        extractWindowStartUs = (centerUs - extractDurationUs / 2)
-                            .coerceIn(0, (clip.sourceDurationUs - extractDurationUs).coerceAtLeast(0))
-                        extractModeActive = true
-                    }
-                },
-                onExport = { showExportDialog = true },
-            )
+            Column(
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            ) {
+                TimelineToolbar(
+                    exportEnabled = state.clips.isNotEmpty() && exportState !is ExportUiState.Exporting,
+                    onSplit = {
+                        val index = player.currentMediaItemIndex
+                        val clip = state.clips.getOrNull(index)
+                        if (clip != null) timelineViewModel.splitClip(clip.id, player.currentPosition * 1000)
+                    },
+                    onDelete = {
+                        state.clips.getOrNull(playheadClipIndex)?.let { timelineViewModel.deleteClip(it.id) }
+                    },
+                    onAddClip = addClipLauncher,
+                    onRecordClip = onRecordRequested,
+                    onQuickExtract = {
+                        val clip = state.clips.getOrNull(playheadClipIndex)
+                        if (clip != null) {
+                            val centerUs = clip.trimStartUs + playheadPositionUs
+                            extractWindowStartUs = (centerUs - extractDurationUs / 2)
+                                .coerceIn(0, (clip.sourceDurationUs - extractDurationUs).coerceAtLeast(0))
+                            extractModeActive = true
+                        }
+                    },
+                    onExport = { showExportDialog = true },
+                )
 
-            if (extractModeActive) {
-                val extractClip = state.clips.getOrNull(playheadClipIndex)
-                ExtractControls(
-                    videoDurationUs = extractClip?.sourceDurationUs ?: 0L,
-                    preset = extractPreset,
-                    customDurationSeconds = extractCustomDurationSeconds,
-                    format = extractFormat,
-                    onPresetSelected = { newPreset ->
-                        extractPreset = newPreset
-                        val allowsGif = newPreset?.allowsGif ?: false
-                        if (!allowsGif && extractFormat == ExtractFormat.GIF) extractFormat = ExtractFormat.MP4
-                        if (extractClip != null) {
-                            val newDurationUs = ((newPreset?.seconds?.toFloat() ?: extractCustomDurationSeconds) * 1_000_000L).toLong()
-                            extractWindowStartUs = extractWindowStartUs
-                                .coerceIn(0, (extractClip.sourceDurationUs - newDurationUs).coerceAtLeast(0))
-                        }
-                    },
-                    onCustomDurationChange = { newSeconds ->
-                        extractCustomDurationSeconds = newSeconds
-                        if (extractClip != null) {
-                            val newDurationUs = (newSeconds * 1_000_000L).toLong()
-                            extractWindowStartUs = extractWindowStartUs
-                                .coerceIn(0, (extractClip.sourceDurationUs - newDurationUs).coerceAtLeast(0))
-                        }
-                    },
-                    onFormatSelected = { extractFormat = it },
-                    onCancel = { extractModeActive = false },
-                    onExtract = {
-                        if (extractClip != null) {
-                            extractModeActive = false
-                            extractViewModel.startExtract(
-                                sourceUri = extractClip.sourceUri,
-                                sourceDurationUs = extractClip.sourceDurationUs,
-                                windowStartUs = extractWindowStartUs,
-                                windowEndUs = (extractWindowStartUs + extractDurationUs).coerceAtMost(extractClip.sourceDurationUs),
-                                format = extractFormat,
-                            )
-                        }
-                    },
+                if (extractModeActive) {
+                    val extractClip = state.clips.getOrNull(playheadClipIndex)
+                    ExtractControls(
+                        videoDurationUs = extractClip?.sourceDurationUs ?: 0L,
+                        preset = extractPreset,
+                        customDurationSeconds = extractCustomDurationSeconds,
+                        format = extractFormat,
+                        onPresetSelected = { newPreset ->
+                            extractPreset = newPreset
+                            val allowsGif = newPreset?.allowsGif ?: false
+                            if (!allowsGif && extractFormat == ExtractFormat.GIF) extractFormat = ExtractFormat.MP4
+                            if (extractClip != null) {
+                                val newDurationUs = ((newPreset?.seconds?.toFloat() ?: extractCustomDurationSeconds) * 1_000_000L).toLong()
+                                extractWindowStartUs = extractWindowStartUs
+                                    .coerceIn(0, (extractClip.sourceDurationUs - newDurationUs).coerceAtLeast(0))
+                            }
+                        },
+                        onCustomDurationChange = { newSeconds ->
+                            extractCustomDurationSeconds = newSeconds
+                            if (extractClip != null) {
+                                val newDurationUs = (newSeconds * 1_000_000L).toLong()
+                                extractWindowStartUs = extractWindowStartUs
+                                    .coerceIn(0, (extractClip.sourceDurationUs - newDurationUs).coerceAtLeast(0))
+                            }
+                        },
+                        onFormatSelected = { extractFormat = it },
+                        onCancel = { extractModeActive = false },
+                        onExtract = {
+                            if (extractClip != null) {
+                                extractModeActive = false
+                                extractViewModel.startExtract(
+                                    sourceUri = extractClip.sourceUri,
+                                    sourceDurationUs = extractClip.sourceDurationUs,
+                                    windowStartUs = extractWindowStartUs,
+                                    windowEndUs = (extractWindowStartUs + extractDurationUs).coerceAtMost(extractClip.sourceDurationUs),
+                                    format = extractFormat,
+                                )
+                            }
+                        },
+                    )
+                }
+
+                TimelineView(
+                    clips = state.clips,
+                    playheadClipIndex = playheadClipIndex,
+                    playheadPositionUs = playheadPositionUs,
+                    onSeek = { index, positionInClipUs -> player.seekTo(index, positionInClipUs / 1000) },
+                    onTrimChange = timelineViewModel::updateTrim,
+                    onMoveClip = timelineViewModel::moveClip,
+                    extractWindow = if (extractModeActive) ExtractWindow(extractWindowStartUs, extractDurationUs) else null,
+                    onExtractWindowMove = { newStartUs -> extractWindowStartUs = newStartUs },
                 )
             }
-
-            TimelineView(
-                clips = state.clips,
-                playheadClipIndex = playheadClipIndex,
-                playheadPositionUs = playheadPositionUs,
-                onSeek = { index, positionInClipUs -> player.seekTo(index, positionInClipUs / 1000) },
-                onTrimChange = timelineViewModel::updateTrim,
-                onMoveClip = timelineViewModel::moveClip,
-                extractWindow = if (extractModeActive) ExtractWindow(extractWindowStartUs, extractDurationUs) else null,
-                onExtractWindowMove = { newStartUs -> extractWindowStartUs = newStartUs },
-            )
         }
 
         val currentExportState = exportState

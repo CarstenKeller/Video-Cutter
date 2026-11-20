@@ -481,3 +481,28 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   nötig.
 - **Zoom-Maximum auf 12x erhöht** (Nutzerfeedback: "muss mindestens bis
   10 gehen"), vorher 6x.
+- **Zoom-Maximum weiter auf 60x erhöht** (Nutzerfeedback: "muss mindestens
+  doppelt so hoch möglich sein. Bei einem Video von 11 Minuten Länge ist
+  das bei 10s nicht praktikabel"): 12x reichte bei langen Videos nicht,
+  um ein 10-Sekunden-Schnellausschnitt-Fenster präzise zu platzieren.
+  60x statt nur der verlangten Verdopplung (24x), weil die konkrete
+  Beispielrechnung (11 Minuten, 10s-Fenster) bei 24x immer noch recht
+  schmal ausfällt. Die Anzahl der Vorschaubilder im Streifen ist bei
+  hohem Zoom weiterhin auf 40 begrenzt (vorher 30) - mehr Einzelbilder
+  pro Darstellung würden die Ladezeit (MediaMetadataRetriever pro Bild)
+  deutlich verschlechtern; **nicht verifiziert**, ob 40 bei Zoom 60x
+  visuell noch dicht genug wirkt, das muss der Nutzer auf dem Gerät
+  beurteilen.
+- **Layout-Fehler behoben: Video-Vorschau schrumpfte, wenn das
+  Schnellausschnitt-Panel eingeblendet wurde** (Nutzerfeedback: "nicht
+  bedienbar, weil das Menü in der Mitte so viele Platz einnimmt und den
+  Videobereich nach oben wegdrückt"). Ursache: die Vorschau hatte
+  `Modifier.weight(1f)` in einer `Column` mit sonst nur
+  wrap-content-hohen Geschwistern - jedes zusätzliche Element (z. B. das
+  Ausschnitt-Panel) nahm der Vorschau direkt Höhe weg. Behoben, indem die
+  Vorschau stattdessen eine feste Größe über ein Seitenverhältnis
+  (16:9, `Modifier.aspectRatio`) bekommt und nicht mehr schrumpfen kann;
+  der gesamte Bereich darunter (Toolbar, ggf. Ausschnitt-Panel,
+  Zeitleiste) ist jetzt selbst `weight(1f)` und vertikal scrollbar
+  (`verticalScroll`), sodass er bei Bedarf scrollt statt die Vorschau zu
+  verdrängen.

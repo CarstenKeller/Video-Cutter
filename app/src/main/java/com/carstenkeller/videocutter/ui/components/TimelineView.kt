@@ -57,7 +57,7 @@ import kotlinx.coroutines.withContext
 
 private const val FULL_STRIP_THUMBNAILS = 10
 private const val HANDLE_WIDTH_DP = 16
-private const val MAX_ZOOM = 12f
+private const val MAX_ZOOM = 60f
 private const val ZOOM_STEP = 1.6f
 
 /**
@@ -202,7 +202,7 @@ private fun ActiveClipTrimStrip(
     val handleWidthPx = with(density) { HANDLE_WIDTH_DP.dp.toPx() }
     val playheadWidthPx = with(density) { 4.dp.toPx() }
     val stripWidthPx = viewportWidthPx * zoomLevel
-    val thumbnails = rememberFullSourceThumbnails(clip, (FULL_STRIP_THUMBNAILS * zoomLevel).roundToInt().coerceIn(FULL_STRIP_THUMBNAILS, 30))
+    val thumbnails = rememberFullSourceThumbnails(clip, (FULL_STRIP_THUMBNAILS * zoomLevel).roundToInt().coerceIn(FULL_STRIP_THUMBNAILS, 40))
 
     val trimStartFraction = (clip.trimStartUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
     val trimEndFraction = (clip.trimEndUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
