@@ -506,3 +506,17 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   Zeitleiste) ist jetzt selbst `weight(1f)` und vertikal scrollbar
   (`verticalScroll`), sodass er bei Bedarf scrollt statt die Vorschau zu
   verdrängen.
+- **`ExtractControls`-Panel radikal verschlankt** (Nutzerfeedback: "nimmt
+  die Hälfte des Bildschirms ein... keinen Erklärtext und keine zwei
+  Zeilen für Überschriften"). Vorher: Titel + Erklärsatz, eigene
+  Überschriftenzeile "Länge" über den Längen-Chips, eigene
+  Überschriftenzeile "Format" über den Format-Radiobuttons (mit
+  Textbeschriftung daneben), ein Erklärsatz zur GIF-Einschränkung,
+  separate Abbrechen-/Extrahieren-Textbuttons in eigener Zeile - macht
+  typisch 5-6 Zeilen. Jetzt: eine einzige horizontal scrollbare Zeile
+  mit Längen-Chips, Format-Chips (GIF/MP4, deaktiviert statt mit
+  Erklärtext wenn nicht verfügbar) und zwei kompakten Icon-Buttons
+  (Haken/Kreuz, neues `ic_check.xml` passend zum bestehenden
+  `ic_close.xml`) für Extrahieren/Abbrechen - keine Überschriften, kein
+  Fließtext. Nur bei benutzerdefinierter Länge ("…"-Chip) kommt eine
+  zweite, ebenso knappe Zeile mit Zahl + Schieberegler hinzu.

@@ -177,6 +177,11 @@ ihn als Release-Asset.
 - Alle Funktionsbuttons (Schneiden, Löschen, Clip hinzufügen, Aufnehmen,
   Ausschnitt extrahieren, Exportieren) sitzen gemeinsam in einer Toolbar
   oberhalb der Zeitleiste – nicht auf zwei Stellen verteilt.
+- Das Schnellausschnitt-Panel ("Ausschnitt extrahieren") ist eine
+  einzige, kompakte, horizontal scrollbare Zeile aus Längen-Chips,
+  Format-Chips (GIF/MP4) und zwei Icon-Buttons (Abbrechen/Extrahieren)
+  – ohne Überschriften oder Erklärtext. Nur bei benutzerdefinierter
+  Länge kommt eine knappe zweite Zeile mit Schieberegler dazu.
 - "Löschen" löscht den Clip, in dem sich die Wiedergabeposition gerade
   befindet (keine separate Auswahl nötig).
 - Nach einem Schnitt zeigen beide entstandenen Clips zuverlässig
