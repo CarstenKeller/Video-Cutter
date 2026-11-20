@@ -111,10 +111,11 @@ ihn als Release-Asset.
   (keine echte LZW-Kompression – siehe `extract/GifEncoder.kt` für die
   Begründung), aber mit echter Median-Cut-Farbpalette statt einer festen
   Farbaufteilung (siehe `extract/MedianCutPalette.kt`), 10 fps und
-  480px maximaler Breite (eine kurze Erhöhung auf 12fps/540px wurde
-  nach Nutzerfeedback "kein animiertes gif mehr exportiert" wieder
-  zurückgenommen, vermutlich zu große Dateien für manche Viewer-Apps –
-  nicht abschließend verifiziert)
+  480px maximaler Breite
+- **Bug behoben:** GIFs zeigten nur ein bis zwei verschiedene Bilder.
+  Ursache: Frames wurden mit `OPTION_CLOSEST_SYNC` gelesen, das zum
+  nächsten Keyframe springt (bei Handy-Videos meist nur alle 1–2s).
+  Jetzt `OPTION_CLOSEST` (exaktes Bild, dafür langsamerer Export).
 - Speichern: MP4 im Album „Video Cutter" (Filme), GIF im Album
   „Video Cutter" (Bilder)
 - **Bug behoben:** Erzeugte GIFs ließen sich nicht abspielen. Ursache:

@@ -42,7 +42,7 @@ class GifExporter(private val context: Context) {
                 (endUs - frameStepUs).coerceAtLeast(startUs),
             )
             val paletteSamples = paletteSampleTimestamps.flatMap { timeUs ->
-                val rawFrame = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: return@flatMap emptyList()
+                val rawFrame = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST) ?: return@flatMap emptyList()
                 val frame = scaleDown(rawFrame)
                 val samples = samplePixels(frame, PALETTE_SAMPLES_PER_FRAME).toList()
                 if (frame !== rawFrame) rawFrame.recycle()
@@ -56,7 +56,13 @@ class GifExporter(private val context: Context) {
                 var framesWritten = 0
                 for (i in 0 until frameCount) {
                     val timeUs = startUs + i * frameStepUs
-                    val rawFrame = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    // OPTION_CLOSEST statt OPTION_CLOSEST_SYNC: CLOSEST_SYNC
+                    // springt zum nächsten Keyframe, und Handy-Videos haben
+                    // meist nur alle 1-2s einen - alle Zeitpunkte eines
+                    // kurzen Ausschnitts landeten so auf denselben ein bis
+                    // zwei Bildern (Nutzerfeedback: "zwei Einzelbilder").
+                    // CLOSEST dekodiert das exakte Bild, ist dafür langsamer.
+                    val rawFrame = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
                         ?: continue
                     val frame = scaleDown(rawFrame)
                     if (encoder == null) {
@@ -96,16 +102,6 @@ class GifExporter(private val context: Context) {
     }
 
     companion object {
-        // Zurückgesetzt auf die vorherigen, bestätigt funktionierenden Werte
-        // (Nutzerfeedback: "kein animiertes gif mehr exportiert" nach der
-        // Erhöhung auf 12fps/540px). Die Median-Cut-Palette selbst ändert
-        // an der Dateigröße nichts (weiterhin exakt 9 Bit pro Pixel, nur mit
-        // besser gewählten Farben) - Verdacht liegt auf der zusätzlichen
-        // Erhöhung von Auflösung/Bildrate, die bei diesem absichtlich
-        // einfachen Encoder (kein echtes LZW, s. GifEncoder) die Dateigröße
-        // weiter in die Höhe getrieben haben könnte, bis manche Viewer-Apps
-        // sie nicht mehr animiert anzeigen. **Nicht verifiziert** - lässt
-        // sich nur durch erneuten Test auf dem Gerät bestätigen.
         private const val FPS = 10.0
         private const val CENTISECONDS_PER_FRAME = (100.0 / FPS).toInt()
         private const val MAX_WIDTH = 480

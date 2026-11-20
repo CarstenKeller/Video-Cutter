@@ -656,13 +656,22 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     Stichprobe, Pixel außerhalb der Stichprobe) - keine Endlosschleife,
     kein außerhalb des gültigen Bereichs liegender Index, durchgängig
     Baumtiefe 8 wie erwartet; die Quantisierungslogik selbst ist damit
-    nicht die wahrscheinliche Ursache. Verdacht: die zusätzliche
-    Auflösungs-/Bildraten-Erhöhung hat die (bei diesem Encoder ohnehin
-    schon große) Datei weiter aufgebläht, bis manche Viewer-Apps sie
-    nicht mehr animiert, sondern nur noch als Standbild anzeigen - ein
-    bekanntes Verhalten vieler Galerie-/Viewer-Apps bei sehr großen
-    GIFs. **Nicht verifiziert:** Das ist eine Vermutung, keine
-    bestätigte Fehlerursache - muss der Nutzer erneut auf dem Gerät
-    prüfen (inkl. ob das Problem schon bei einem kleineren Ausschnitt
-    oder erst bei längeren Clips auftritt, und ob es am Anzeigen in
-    einer bestimmten App liegt).
+    nicht die wahrscheinliche Ursache. Damaliger Verdacht: zu große
+    Datei für Viewer-Apps - **das war falsch** (siehe nächster Punkt).
+  - **Tatsächliche Ursache gefunden (Nutzerfeedback: "immer noch zwei
+    Einzelbilder"):** Die Frames wurden mit
+    `MediaMetadataRetriever.OPTION_CLOSEST_SYNC` gelesen, das immer zum
+    nächstgelegenen *Keyframe* springt. Handy-Videos haben meist nur
+    alle 1-2 Sekunden einen Keyframe - alle angefragten Zeitpunkte eines
+    kurzen Ausschnitts landeten dadurch auf denselben ein bis zwei
+    Bildern. Das war von Anfang an so (erklärt auch die frühere
+    Beschwerde "wenige Frames") und hatte nichts mit der Palette oder
+    der Dateigröße zu tun. Behoben mit `OPTION_CLOSEST` (dekodiert das
+    exakte Bild). **Nicht verifiziert:** `OPTION_CLOSEST` ist deutlich
+    langsamer, da jedes Bild ab dem vorherigen Keyframe dekodiert werden
+    muss - wie lange ein Export auf dem Gerät dauert, ist offen.
+    10fps/480px bleiben vorerst; eine Erhöhung lässt sich erneut prüfen,
+    sobald die Animation bestätigt funktioniert.
+    Vermutlich derselbe Effekt betrifft die Vorschaubilder der Zeitleiste
+    (ebenfalls `OPTION_CLOSEST_SYNC`) - mehrere Kacheln zeigen dort
+    womöglich dasselbe Keyframe-Bild; noch nicht geändert.
