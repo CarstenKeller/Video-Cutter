@@ -56,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val FULL_STRIP_THUMBNAILS = 10
+private const val THUMBNAIL_EXTRACT_COUNT = 40
 private const val HANDLE_WIDTH_DP = 16
 private const val MAX_ZOOM = 60f
 private const val ZOOM_STEP = 1.6f
@@ -202,7 +203,14 @@ private fun ActiveClipTrimStrip(
     val handleWidthPx = with(density) { HANDLE_WIDTH_DP.dp.toPx() }
     val playheadWidthPx = with(density) { 4.dp.toPx() }
     val stripWidthPx = viewportWidthPx * zoomLevel
-    val thumbnails = rememberFullSourceThumbnails(clip, (FULL_STRIP_THUMBNAILS * zoomLevel).roundToInt().coerceIn(FULL_STRIP_THUMBNAILS, 40))
+    // Feste, von Zoom unabhängige Anzahl tatsächlich extrahierter Einzelbilder
+    // (teuer: ein MediaMetadataRetriever-Seek pro Bild) - die Anzahl der
+    // *angezeigten* Kacheln skaliert dagegen mit dem Zoom (s. u.), sodass die
+    // einzelnen Kacheln beim Reinzoomen nicht größer werden (Nutzerfeedback:
+    // "Wenn ich reinzoome werden die thumbnails größer. Sie sollten gleich
+    // groß bleiben."), auch wenn mehrere Kacheln dasselbe Einzelbild zeigen.
+    val thumbnails = rememberFullSourceThumbnails(clip, THUMBNAIL_EXTRACT_COUNT)
+    val totalThumbnailSlots = (FULL_STRIP_THUMBNAILS * zoomLevel).roundToInt().coerceAtLeast(1)
 
     val trimStartFraction = (clip.trimStartUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
     val trimEndFraction = (clip.trimEndUs.toFloat() / clip.sourceDurationUs.toFloat()).coerceIn(0f, 1f)
@@ -255,7 +263,14 @@ private fun ActiveClipTrimStrip(
             ) {
                 if (thumbnails.any { it != null }) {
                     Row(modifier = Modifier.fillMaxSize()) {
-                        thumbnails.forEach { bitmap ->
+                        repeat(totalThumbnailSlots) { slot ->
+                            // Mehrere Kacheln können auf dasselbe extrahierte
+                            // Einzelbild zeigen (siehe Kommentar oben) - die
+                            // Kachel-Breite bleibt über weight(1f) trotzdem
+                            // exakt konstant (keine Rundungsfehler durch
+                            // dp-Umrechnung bei hunderten Kacheln).
+                            val thumbnailIndex = (slot * thumbnails.size / totalThumbnailSlots).coerceIn(0, thumbnails.size - 1)
+                            val bitmap = thumbnails[thumbnailIndex]
                             if (bitmap != null) {
                                 Image(
                                     bitmap = bitmap,
@@ -463,7 +478,7 @@ private fun BoxScope.ExtractWindowHandle(
     )
 }
 
-/** Lädt [count] Vorschaubilder über die komplette Quelldatei (mehr bei höherem Zoom). */
+/** Lädt [count] Vorschaubilder über die komplette Quelldatei (feste Anzahl, unabhängig vom Zoom). */
 @Composable
 private fun rememberFullSourceThumbnails(clip: VideoClip, count: Int): List<ImageBitmap?> {
     val context = LocalContext.current

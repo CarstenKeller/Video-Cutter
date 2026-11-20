@@ -520,3 +520,42 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   `ic_close.xml`) für Extrahieren/Abbrechen - keine Überschriften, kein
   Fließtext. Nur bei benutzerdefinierter Länge ("…"-Chip) kommt eine
   zweite, ebenso knappe Zeile mit Zahl + Schieberegler hinzu.
+- **`ExtractControls` erneut überarbeitet** (Nutzerfeedback: Schieberegler
+  "sehr fummelig und nicht exakt zu bedienen"; außerdem sollten alle
+  Elemente inkl. Abbrechen ohne horizontales Scrollen in zwei Zeilen
+  passen):
+  - Schieberegler für die freie Länge ersetzt durch einen Stepper
+    (Zahl + Rauf-/Runter-Buttons, Schrittweite 5s) - exakt statt
+    fummelig zu bedienen.
+  - Horizontales Scrollen komplett entfernt: Zeile 1 = Längen-Presets +
+    Stepper, Zeile 2 = Format-Chips + Abbrechen-/Extrahieren-Icons
+    (rechtsbündig über einen `Spacer(Modifier.weight(1f))`) - durch den
+    kompakteren Stepper passt jetzt alles ohne Scrollen auf den
+    Bildschirm, Abbrechen ist immer sichtbar.
+  - **Bug behoben: Dauerschleife blieb dauerhaft auf der zuerst
+    gewählten Länge**, auch nach Wahl einer anderen Länge (Nutzerfeedback:
+    "läuft die loop immer nur in dieser Schleife, auch wenn ich eine
+    andere Dauer wähle"). Ursache: Die dauerhaft laufende
+    `LaunchedEffect(player)`-Coroutine in `EditorScreen` wird nur einmal
+    gestartet (ihr Key `player` ändert sich nie) und hatte sich beim
+    Start über die damals aktuelle `extractDurationUs` geschlossen - ein
+    einfacher lokaler `val`, keine Compose-`State`, also ohne Wirkung bei
+    späteren Recompositions. Behoben mit `rememberUpdatedState`.
+  - **Bug behoben: Längenänderung verschob das Fenster an seinen alten
+    Anfang statt um die Mitte zu zentrieren** (Nutzerfeedback: "setzt du
+    die Auswahl als Startzeitpunkt für die Sequenz, es sollte genau die
+    Mitte sein"). Neue Hilfsfunktion `recenteredExtractStartUs` hält bei
+    einer Längenänderung die bisherige Fenster-MITTE fest, statt nur den
+    alten Start-Zeitpunkt in den neuen Längenbereich zu clampen.
+  - **Bug behoben: Vorschaubilder im Filmstreifen wurden beim Reinzoomen
+    größer** (Nutzerfeedback: "Sie sollten gleich groß bleiben"). Ursache:
+    die Anzahl der *angezeigten* Kacheln war auf 40 gedeckelt, während die
+    Streifenbreite mit dem Zoom bis auf das 60-Fache wuchs - ab Zoom 4x
+    wurden die Kacheln dadurch zunehmend breiter gestreckt. Jetzt
+    getrennt: eine feste, von Zoom unabhängige Anzahl tatsächlich
+    extrahierter Einzelbilder (`THUMBNAIL_EXTRACT_COUNT = 40`, teuer -
+    ein `MediaMetadataRetriever`-Seek pro Bild) gegenüber einer mit dem
+    Zoom mitwachsenden Anzahl *angezeigter* Kacheln (`FULL_STRIP_THUMBNAILS
+    * zoomLevel`, günstig - mehrere Kacheln zeigen bei hohem Zoom
+    dasselbe Einzelbild); über `weight(1f)` bleibt jede Kachel dadurch
+    rechnerisch exakt bildschirmbreite/10 breit, unabhängig vom Zoom.

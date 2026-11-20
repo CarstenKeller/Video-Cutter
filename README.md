@@ -165,6 +165,9 @@ ihn als Release-Asset.
   schrumpft nicht mehr, wenn darunter zusätzliche Bedienelemente (z. B.
   das Schnellausschnitt-Panel) eingeblendet werden – dieser Bereich
   scrollt bei Bedarf stattdessen selbst.
+- Die Vorschaubilder im Filmstreifen bleiben beim Zoomen gleich groß
+  (mehrere Kacheln zeigen bei hohem Zoom dasselbe extrahierte
+  Einzelbild, statt wenige Bilder zunehmend breiter zu strecken).
 - Ein eigener, ziehbarer Positionsstrich (weiß) scrubbt die Wiedergabe –
   bewusst **kein** "an beliebiger Stelle tippen" mehr, das war in
   früheren Versuchen die Hauptursache für Gesten-Konflikte. Jeder der
@@ -177,11 +180,18 @@ ihn als Release-Asset.
 - Alle Funktionsbuttons (Schneiden, Löschen, Clip hinzufügen, Aufnehmen,
   Ausschnitt extrahieren, Exportieren) sitzen gemeinsam in einer Toolbar
   oberhalb der Zeitleiste – nicht auf zwei Stellen verteilt.
-- Das Schnellausschnitt-Panel ("Ausschnitt extrahieren") ist eine
-  einzige, kompakte, horizontal scrollbare Zeile aus Längen-Chips,
-  Format-Chips (GIF/MP4) und zwei Icon-Buttons (Abbrechen/Extrahieren)
-  – ohne Überschriften oder Erklärtext. Nur bei benutzerdefinierter
-  Länge kommt eine knappe zweite Zeile mit Schieberegler dazu.
+- Das Schnellausschnitt-Panel ("Ausschnitt extrahieren") ist zwei feste,
+  nicht scrollende Zeilen – ohne Überschriften oder Erklärtext. Zeile 1:
+  Längen-Presets + ein Stepper (Zahl + Rauf-/Runter-Buttons statt
+  Schieberegler) für eine frei wählbare Länge. Zeile 2: Format-Chips
+  (GIF/MP4) + Abbrechen-/Extrahieren-Icons, rechtsbündig und immer ohne
+  Scrollen erreichbar.
+- Ändert sich die Ausschnitt-Länge, bleibt die bisherige Fenster-MITTE
+  erhalten (nicht der Anfang) – das Fenster bleibt also um die zuletzt
+  fokussierte Stelle zentriert.
+- Die Dauerschleifen-Vorschau im Ausschnitt-Modus folgt zuverlässig
+  jeder neu gewählten Länge (Bug behoben: sie blieb vorher dauerhaft auf
+  der zuerst gewählten Länge stehen).
 - "Löschen" löscht den Clip, in dem sich die Wiedergabeposition gerade
   befindet (keine separate Auswahl nötig).
 - Nach einem Schnitt zeigen beide entstandenen Clips zuverlässig

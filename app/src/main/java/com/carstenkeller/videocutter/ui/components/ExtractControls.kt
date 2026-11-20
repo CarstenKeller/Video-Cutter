@@ -1,25 +1,30 @@
 package com.carstenkeller.videocutter.ui.components
 
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.carstenkeller.videocutter.R
 import com.carstenkeller.videocutter.extract.ExtractDurationPreset
 import com.carstenkeller.videocutter.extract.ExtractFormat
+import kotlin.math.roundToInt
+
+private const val CUSTOM_DURATION_STEP_SECONDS = 5f
 
 /**
  * Längen-/Formatauswahl für den Schnellausschnitt, direkt auf der
@@ -27,11 +32,11 @@ import com.carstenkeller.videocutter.extract.ExtractFormat
  * Ausschnitts wird nicht hier, sondern per Zieh-Fenster direkt auf der
  * Zeitleiste festgelegt (siehe `TimelineView`/`ExtractWindow`).
  *
- * Bewusst eine einzige, horizontal scrollbare Zeile ohne Überschriften
- * oder Erklärtext (Nutzerfeedback: "nimmt die Hälfte des Bildschirms
- * ein... keinen Erklärtext und keine zwei Zeilen für Überschriften") -
- * nur bei benutzerdefinierter Länge kommt eine zweite, ebenso knappe
- * Zeile für den Schieberegler dazu.
+ * Bewusst zwei feste, nicht scrollende Zeilen ohne Überschriften oder
+ * Erklärtext (Nutzerfeedback): Zeile 1 Längen-Presets + Stepper für eine
+ * frei wählbare Länge (ersetzt den vorherigen Schieberegler, der "sehr
+ * fummelig und nicht exakt zu bedienen" war), Zeile 2 Format-Auswahl +
+ * Abbrechen/Extrahieren - alles ohne horizontales Scrollen erreichbar.
  */
 @Composable
 fun ExtractControls(
@@ -49,12 +54,11 @@ fun ExtractControls(
     val longPresetSeconds = ExtractDurationPreset.LONG.seconds.toFloat()
     val customAvailable = videoDurationSeconds > longPresetSeconds
     val allowsGif = preset?.allowsGif ?: false
+    val effectiveDurationSeconds = preset?.seconds?.toFloat() ?: customDurationSeconds
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -66,15 +70,21 @@ fun ExtractControls(
                     label = { Text("${option.seconds}s") },
                 )
             }
-            FilterChip(
-                selected = preset == null,
+            DurationStepper(
                 enabled = customAvailable,
-                onClick = { onPresetSelected(null) },
-                label = { Text("…") },
+                isActive = preset == null,
+                seconds = effectiveDurationSeconds,
+                onChange = { newSeconds ->
+                    onCustomDurationChange(newSeconds.coerceIn(longPresetSeconds, videoDurationSeconds))
+                },
             )
+        }
 
-            Spacer(modifier = Modifier.width(4.dp))
-
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             ExtractFormat.entries.forEach { option ->
                 val enabled = option != ExtractFormat.GIF || allowsGif
                 FilterChip(
@@ -84,24 +94,49 @@ fun ExtractControls(
                     label = { Text(option.label) },
                 )
             }
-
+            Spacer(modifier = Modifier.weight(1f))
             IconActionButton(icon = R.drawable.ic_close, label = "Abbrechen", onClick = onCancel)
             IconActionButton(icon = R.drawable.ic_check, label = "Extrahieren", onClick = onExtract)
         }
+    }
+}
 
-        if (preset == null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("%.1fs".format(customDurationSeconds), style = MaterialTheme.typography.bodySmall)
-                Slider(
-                    value = customDurationSeconds,
-                    onValueChange = onCustomDurationChange,
-                    valueRange = longPresetSeconds..videoDurationSeconds.coerceAtLeast(longPresetSeconds + 0.01f),
-                    modifier = Modifier.weight(1f).padding(start = 8.dp),
-                )
-            }
-        }
+/** Kompakter Ersatz für den vorherigen Schieberegler: Dauer-Anzeige mit Rauf-/Runter-Buttons. */
+@Composable
+private fun DurationStepper(
+    enabled: Boolean,
+    isActive: Boolean,
+    seconds: Float,
+    onChange: (Float) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isActive) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepperButton(label = "−", enabled = enabled) { onChange(seconds - CUSTOM_DURATION_STEP_SECONDS) }
+        Text(
+            "${seconds.roundToInt()}s",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
+        StepperButton(label = "+", enabled = enabled) { onChange(seconds + CUSTOM_DURATION_STEP_SECONDS) }
+    }
+}
+
+@Composable
+private fun StepperButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
+            style = MaterialTheme.typography.titleMedium,
+        )
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -127,6 +128,14 @@ fun EditorScreen(
     var extractFormat by remember { mutableStateOf(ExtractFormat.GIF) }
     var extractWindowStartUs by remember { mutableStateOf(0L) }
     val extractDurationUs = ((extractPreset?.seconds?.toFloat() ?: extractCustomDurationSeconds) * 1_000_000L).toLong()
+    // Die dauerhaft laufende Loop-Coroutine unten (LaunchedEffect(player), Key
+    // ändert sich nie) wurde einmalig gestartet und schließt sonst über den
+    // zu diesem Zeitpunkt aktuellen Wert von extractDurationUs - spätere
+    // Recompositions (z. B. eine andere Länge gewählt) hätten dort keine
+    // Wirkung mehr gezeigt (Bug: Loop blieb dauerhaft auf der zuerst
+    // gewählten Länge). rememberUpdatedState hält die Coroutine auf dem
+    // aktuellen Wert.
+    val latestExtractDurationUs = rememberUpdatedState(extractDurationUs)
 
     // Playhead-Position fürs Timeline-Lineal: ExoPlayer liefert keinen
     // Compose-State für currentPosition, daher wird hier regelmäßig abgefragt
@@ -145,7 +154,7 @@ fun EditorScreen(
                 val clip = state.clips.getOrNull(playheadClipIndex)
                 if (clip != null) {
                     val absoluteUs = clip.trimStartUs + playheadPositionUs
-                    val windowEndUs = extractWindowStartUs + extractDurationUs
+                    val windowEndUs = extractWindowStartUs + latestExtractDurationUs.value
                     if (absoluteUs < extractWindowStartUs || absoluteUs >= windowEndUs) {
                         player.seekTo(playheadClipIndex, (extractWindowStartUs - clip.trimStartUs) / 1000)
                     }
@@ -202,21 +211,37 @@ fun EditorScreen(
                         customDurationSeconds = extractCustomDurationSeconds,
                         format = extractFormat,
                         onPresetSelected = { newPreset ->
+                            val oldDurationUs = extractDurationUs
                             extractPreset = newPreset
                             val allowsGif = newPreset?.allowsGif ?: false
                             if (!allowsGif && extractFormat == ExtractFormat.GIF) extractFormat = ExtractFormat.MP4
                             if (extractClip != null) {
                                 val newDurationUs = ((newPreset?.seconds?.toFloat() ?: extractCustomDurationSeconds) * 1_000_000L).toLong()
-                                extractWindowStartUs = extractWindowStartUs
-                                    .coerceIn(0, (extractClip.sourceDurationUs - newDurationUs).coerceAtLeast(0))
+                                extractWindowStartUs = recenteredExtractStartUs(
+                                    oldStartUs = extractWindowStartUs,
+                                    oldDurationUs = oldDurationUs,
+                                    newDurationUs = newDurationUs,
+                                    sourceDurationUs = extractClip.sourceDurationUs,
+                                )
                             }
                         },
                         onCustomDurationChange = { newSeconds ->
+                            // Setzt bewusst auch den Preset-Modus zurück (statt
+                            // zwei getrennte Callbacks aufzurufen): zwei
+                            // aufeinanderfolgende State-Änderungen in einem
+                            // Klick würden sich hier gegenseitig mit jeweils
+                            // veraltetem extractDurationUs überschreiben.
+                            val oldDurationUs = extractDurationUs
+                            extractPreset = null
                             extractCustomDurationSeconds = newSeconds
                             if (extractClip != null) {
                                 val newDurationUs = (newSeconds * 1_000_000L).toLong()
-                                extractWindowStartUs = extractWindowStartUs
-                                    .coerceIn(0, (extractClip.sourceDurationUs - newDurationUs).coerceAtLeast(0))
+                                extractWindowStartUs = recenteredExtractStartUs(
+                                    oldStartUs = extractWindowStartUs,
+                                    oldDurationUs = oldDurationUs,
+                                    newDurationUs = newDurationUs,
+                                    sourceDurationUs = extractClip.sourceDurationUs,
+                                )
                             }
                         },
                         onFormatSelected = { extractFormat = it },
@@ -296,4 +321,22 @@ fun EditorScreen(
             else -> Unit
         }
     }
+}
+
+/**
+ * Neue Fenster-Startzeit, wenn sich die Ausschnitt-Länge ändert: hält die
+ * Fenster-MITTE fest (statt den Anfang) - Nutzerfeedback: "setzt du die
+ * Auswahl als Startzeitpunkt für die Sequenz, es sollte genau die Mitte
+ * sein". Ohne das würde z. B. ein auf der Zeitleiste verschobenes Fenster
+ * bei einer Längenänderung wieder an seinem (alten) Anfang kleben, statt
+ * um die zuletzt fokussierte Stelle herum zu bleiben.
+ */
+private fun recenteredExtractStartUs(
+    oldStartUs: Long,
+    oldDurationUs: Long,
+    newDurationUs: Long,
+    sourceDurationUs: Long,
+): Long {
+    val centerUs = oldStartUs + oldDurationUs / 2
+    return (centerUs - newDurationUs / 2).coerceIn(0, (sourceDurationUs - newDurationUs).coerceAtLeast(0))
 }
