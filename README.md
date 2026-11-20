@@ -113,9 +113,8 @@ ihn als Release-Asset.
   ~12.000 Material-Icons ungeschrumpft mit aus, obwohl nur rund 10 Icons
   verwendet wurden. Entfernt und durch eigene, schlanke
   Strich-Vektor-Icons (`app/src/main/res/drawable/ic_*.xml`) ersetzt –
-  dadurch sollte die APK deutlich kleiner werden. **Nicht verifiziert:**
-  die tatsächliche neue Dateigröße muss am nächsten CI-Build abgelesen
-  werden.
+  dadurch sollte die APK deutlich kleiner werden. **Bestätigt:** Build
+  `f9ff47a` liefert 34,3MB statt zuvor >60MB.
 - App-Icon überarbeitet: statt eines einfachen weißen Play-Dreiecks zeigt
   es jetzt einen horizontal "geschnittenen" Play-Button (zwei Keile mit
   Lücke dazwischen) auf kräftigem Blau – als Symbol für "Schneiden" +

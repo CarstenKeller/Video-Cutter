@@ -190,8 +190,8 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   ca. 10 Icons genutzt wurden. Fix: Abhängigkeit entfernt, stattdessen ~10
   eigene, schlanke Vektor-Icons (`res/drawable/ic_*.xml`, Strichzeichnungen)
   angelegt und `IconActionButton` von `ImageVector` auf `@DrawableRes Int`
-  umgestellt. Erwartung: deutlich kleinere APK, muss nach dem nächsten
-  CI-Build am tatsächlichen Dateigrößen-Wert bestätigt werden.
+  umgestellt. **Bestätigt:** Build `f9ff47a` liefert eine APK von 34,3MB
+  statt zuvor >60MB (gut halbiert).
 - **Design-Prinzipien geprüft:** Durchgesehen, welche hartkodierten Farben
   im UI-Code legitim sind (z. B. `Color.Black`/`Color.White` als Overlay auf
   Video-/Kamera-Vorschau – dort wird garantierter Kontrast unabhängig vom
