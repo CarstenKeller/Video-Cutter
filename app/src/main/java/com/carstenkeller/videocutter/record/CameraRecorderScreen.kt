@@ -28,9 +28,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,6 +47,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.carstenkeller.videocutter.R
 import com.carstenkeller.videocutter.media.MediaDurationReader
 import com.carstenkeller.videocutter.ui.components.IconActionButton
 import kotlinx.coroutines.delay
@@ -165,7 +163,7 @@ fun CameraRecorderScreen(
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
 
         IconActionButton(
-            icon = Icons.Filled.Close,
+            icon = R.drawable.ic_close,
             label = "Abbrechen",
             onClick = onCancel,
             modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
@@ -189,7 +187,7 @@ fun CameraRecorderScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconActionButton(
-                icon = Icons.Filled.FlipCameraAndroid,
+                icon = R.drawable.ic_flip_camera,
                 label = "Kamera wechseln",
                 onClick = {
                     lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT) {

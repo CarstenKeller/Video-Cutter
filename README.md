@@ -105,5 +105,22 @@ ihn als Release-Asset.
   getestet, ob die erzeugten Dateien von Galerie-Apps korrekt angezeigt
   werden.
 
+## APK-Größe & App-Icon
+
+- Die Debug-APK war zuvor über 60MB groß. Ursache (empirisch per
+  `unzip`/`strings` am gebauten APK ermittelt): die Abhängigkeit
+  `androidx.compose.material:material-icons-extended` lieferte alle
+  ~12.000 Material-Icons ungeschrumpft mit aus, obwohl nur rund 10 Icons
+  verwendet wurden. Entfernt und durch eigene, schlanke
+  Strich-Vektor-Icons (`app/src/main/res/drawable/ic_*.xml`) ersetzt –
+  dadurch sollte die APK deutlich kleiner werden. **Nicht verifiziert:**
+  die tatsächliche neue Dateigröße muss am nächsten CI-Build abgelesen
+  werden.
+- App-Icon überarbeitet: statt eines einfachen weißen Play-Dreiecks zeigt
+  es jetzt einen horizontal "geschnittenen" Play-Button (zwei Keile mit
+  Lücke dazwischen) auf kräftigem Blau – als Symbol für "Schneiden" +
+  "Abspielen". **Nicht verifiziert:** Wirkung auf echtem Homescreen/App-
+  Drawer noch nicht gegengeprüft.
+
 Alles Weitere (mehrere Videospuren, Audiospur, Bilder, Übergänge,
 Hintergrund-Ersatz, Undo/Redo etc.) folgt gemäß `plan.md`.

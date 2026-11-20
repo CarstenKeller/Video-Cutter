@@ -69,7 +69,12 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
+    // Bewusst KEIN material-icons-extended: diese Bibliothek enthält alle
+    // ~12.000 Material-Icons in 5 Stilvarianten und wird in Debug-Builds
+    // (kein R8/Minify) komplett ungeschrumpft mitgeliefert - das allein hat
+    // die APK um rund 65MB aufgebläht, obwohl nur ~10 Icons genutzt werden.
+    // Stattdessen: schlanke, selbst gezeichnete Vektor-Icons unter
+    // res/drawable/ic_*.xml (ein paar hundert Byte statt Megabytes).
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")

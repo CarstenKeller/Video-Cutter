@@ -181,3 +181,26 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   Google inzwischen entferntes Legacy-Paket (`tools`) zu installieren und
   brach die Pipeline. Ersatzlos entfernt, da der GitHub-Runner bereits ein
   vollständiges Android SDK mitbringt.
+- **APK-Größe (>60MB) untersucht und behoben:** Ursache empirisch ermittelt
+  (gebautes APK heruntergeladen, mit `unzip -l` und `strings`/`grep` auf den
+  `.dex`-Dateien inspiziert statt vermutet) – die Abhängigkeit
+  `androidx.compose.material:material-icons-extended` allein war für ~66MB
+  der ~68MB verantwortlich, da sie alle ~12.000 Material-Icons in 5
+  Stilvarianten ungeschrumpft enthält (Debug-Build ohne Minify), obwohl nur
+  ca. 10 Icons genutzt wurden. Fix: Abhängigkeit entfernt, stattdessen ~10
+  eigene, schlanke Vektor-Icons (`res/drawable/ic_*.xml`, Strichzeichnungen)
+  angelegt und `IconActionButton` von `ImageVector` auf `@DrawableRes Int`
+  umgestellt. Erwartung: deutlich kleinere APK, muss nach dem nächsten
+  CI-Build am tatsächlichen Dateigrößen-Wert bestätigt werden.
+- **Design-Prinzipien geprüft:** Durchgesehen, welche hartkodierten Farben
+  im UI-Code legitim sind (z. B. `Color.Black`/`Color.White` als Overlay auf
+  Video-/Kamera-Vorschau – dort wird garantierter Kontrast unabhängig vom
+  Theme benötigt) und welche eigentlich Theme-Tokens sein sollten. Fund:
+  Der nicht ausgewählte Clip-Rahmen in der Timeline nutzte hartkodiertes
+  `Color.Gray` statt `MaterialTheme.colorScheme.outline` – korrigiert.
+- **Neues App-Logo:** Platzhalter-Icon (einfaches weißes Play-Dreieck) durch
+  ein eigenständiges Motiv ersetzt: ein horizontal in zwei Keile
+  "geschnittener" Play-Button (`ic_launcher_foreground.xml`), der Schneiden
+  und Abspielen symbolisiert. Hintergrundfarbe von `#1E3A5F` auf ein
+  kräftigeres `#1565C0` (Blau) umgestellt. Noch nicht auf dem Gerät
+  gegengeprüft, wie das Icon auf dem Homescreen tatsächlich wirkt.

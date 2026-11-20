@@ -20,9 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
@@ -43,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.carstenkeller.videocutter.R
 import com.carstenkeller.videocutter.timeline.VideoClip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -116,7 +114,7 @@ private fun ClipBlock(
             .border(
                 BorderStroke(
                     width = if (isSelected) 2.dp else 1.dp,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 ),
                 RoundedCornerShape(8.dp),
             )
@@ -144,7 +142,7 @@ private fun ClipBlock(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconActionButton(
-                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    icon = R.drawable.ic_chevron_left,
                     label = "Nach links verschieben",
                     onClick = onMoveLeft,
                     enabled = canMoveLeft,
@@ -158,7 +156,7 @@ private fun ClipBlock(
                     modifier = Modifier.weight(1f),
                 )
                 IconActionButton(
-                    icon = Icons.AutoMirrored.Filled.ArrowForward,
+                    icon = R.drawable.ic_chevron_right,
                     label = "Nach rechts verschieben",
                     onClick = onMoveRight,
                     enabled = canMoveRight,
