@@ -375,3 +375,31 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     Trimmen per Zieh-Griff) bleiben als mögliche spätere Verbesserung
     vorgemerkt, aber erst, wenn die Standardfunktionalität auf einem
     echten Gerät als stabil bestätigt ist.
+- **Zeitleiste nach Vorlage der Standard-Galerie-Oberfläche neu gebaut
+  (Nutzer hat ein Screenrecording der Android-Galerie-Videobearbeitung
+  geschickt: "so will ich das haben"):** Per `ffmpeg` Einzelbilder aus dem
+  Screenrecording extrahiert und ausgewertet (keine Vermutung, sondern
+  tatsächlich abgelesen). Erkanntes Muster: ein durchgehender Filmstreifen
+  über die komplette Videolänge, zwei weiße Trimm-Griffe an den Rändern
+  des gewählten Bereichs (Rest abgedunkelt), ein davon unabhängiger,
+  ziehbarer Positionsstrich dazwischen - kein "an beliebiger Stelle
+  tippen" zum Springen.
+  - Umgesetzt als `ActiveClipTrimStrip`: Streifen ist **bildschirmbreit,
+    konstant** (nicht proportional zur Videolänge - das war die
+    eigentliche Ursache des `c875cd6`-Fehlschlags, nicht das Full-Source-
+    Prinzip an sich). Dadurch ändert sich die Streifenbreite nie während
+    einer Trimm-Geste, was Griff-Positionierung und Pixel-pro-Mikrosekunde-
+    Berechnung stabil und unabhängig vom bisher riskanten
+    "Row schrumpft nur von rechts"-Problem macht.
+  - Drei Griffe (`StripHandle`, über `Modifier.draggable()`/
+    `rememberDraggableState`): zwei für Trimm-Start/-Ende, einer für die
+    Wiedergabeposition (scrubben). Jeder Griff hat eine eigene, klar
+    getrennte Trefferfläche - bewusst **kein** zusätzliches
+    Tippen-auf-beliebige-Stelle mehr, das war in den vorherigen vier
+    Versuchen die Hauptursache für Gesten-Konflikte.
+  - Mehrere Clips (nach einem Schnitt) werden weiterhin über eine
+    einfache Auswahl-Reihe (`ClipChip`, Tippen + Verschieben-Pfeile, kein
+    Ziehen) oberhalb des Trimm-Streifens gewechselt - diese Interaktion
+    war bereits bestätigt funktionsfähig und wurde unverändert gelassen.
+  - **Nicht verifiziert:** Erster Durchlauf nach Vorlage, noch nicht auf
+    einem echten Gerät getestet.

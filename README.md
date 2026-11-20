@@ -134,27 +134,36 @@ ihn als Release-Asset.
 
 ## Zeitleiste
 
-> **Kurskorrektur:** Mehrere Versuche, Tippen-zum-Springen und Trimmen per
-> Zieh-Griff direkt auf der Zeitleiste umzusetzen, haben sich im
-> Gerätetest als unzuverlässig erwiesen (ohne echtes Gerät lässt sich
-> Compose-Gesten-/Layout-Verhalten nicht abschließend verifizieren).
-> Bewusst zurückgestellt auf die einfache, zuvor bewährte Bedienung.
+> Nachgebaut nach der Standard-Trimm-Oberfläche der Android-Galerie
+> (z. B. Google Fotos) – der Nutzer hat ein Screenrecording davon
+> geschickt, das per `ffmpeg` in Einzelbilder zerlegt und ausgewertet
+> wurde, um das tatsächliche Verhalten (nicht nur den Eindruck) genau
+> nachzubauen.
 
-- Tippen auf einen Clip-Block springt im Video an dessen Anfang und
-  macht ihn zum aktiven Clip.
-- Trimmen über einen `RangeSlider` unterhalb der Zeitleiste, für den
-  Clip, in dem sich die Wiedergabeposition gerade befindet.
+- Ein durchgehender Filmstreifen über die komplette Quelldatei des
+  aktiven Clips, bildschirmbreit und **konstant** (nicht proportional
+  zur Videolänge – das hatte sich in einem früheren Versuch als
+  Fehlerquelle erwiesen: absurd breite Streifen bei normal langen
+  Videos). Zwei weiße Trimm-Griffe an den Rändern des gewählten
+  Bereichs, der Rest wird abgedunkelt.
+- Ein eigener, ziehbarer Positionsstrich (weiß) scrubbt die Wiedergabe –
+  bewusst **kein** "an beliebiger Stelle tippen" mehr, das war in
+  früheren Versuchen die Hauptursache für Gesten-Konflikte. Jeder der
+  drei Griffe (zwei Trimm-Griffe, ein Positionsgriff) hat eine eigene,
+  klar getrennte Trefferfläche.
+- Mehrere Clips (nach einem Schnitt) werden über eine einfache
+  Auswahl-Reihe oberhalb des Trimm-Streifens gewechselt (Tippen +
+  Verschieben-Pfeile, kein Ziehen) – diese Interaktion war bereits
+  bestätigt funktionsfähig.
 - "Löschen" löscht den Clip, in dem sich die Wiedergabeposition gerade
   befindet (keine separate Auswahl nötig).
-- Positionsbalken (Playhead, weiß mit schwarzer Außenlinie) im aktuellen
-  Clip-Block sowie eine Zeitanzeige "Position: mm:ss / mm:ss".
 - Nach einem Schnitt zeigen beide entstandenen Clips zuverlässig
   unterschiedliche Vorschaubilder (Bug behoben: nur eine Hälfte bekam
   beim Schneiden eine neue Clip-Id, wodurch Thumbnails teils veraltet
   oder – bei fehlgeschlagener Frame-Extraktion – als ein einziges, über
   die ganze Blockbreite gestrecktes Bild angezeigt wurden).
-- **Nicht verifiziert:** Die aktuelle, bewusst einfach gehaltene Fassung
-  ist noch nicht erneut auf einem echten Gerät bestätigt.
+- **Nicht verifiziert:** Erster Durchlauf nach Vorlage, noch nicht auf
+  einem echten Gerät getestet.
 
 Alles Weitere (mehrere Videospuren, Audiospur, Bilder, Übergänge,
 Hintergrund-Ersatz, Undo/Redo etc.) folgt gemäß `plan.md`.
