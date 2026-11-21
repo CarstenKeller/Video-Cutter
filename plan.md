@@ -675,3 +675,26 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     Vermutlich derselbe Effekt betrifft die Vorschaubilder der Zeitleiste
     (ebenfalls `OPTION_CLOSEST_SYNC`) - mehrere Kacheln zeigen dort
     womöglich dasselbe Keyframe-Bild; noch nicht geändert.
+- **Tippen auf die Leiste + Scrollen während der Wiedergabe**
+  (Nutzerfeedback: Position soll sich auch per Tippen in der Leiste
+  setzen lassen; während der Wiedergabe ließ sich nicht scrollen, weil
+  das automatische Folgen sofort zurücksprang; ein Pfeil am Rand soll
+  zeigen, wo der Positionszeiger liegt):
+  - Tippen (`detectTapGestures`, nur Tippen, kein Ziehen) springt im
+    Video an die getippte Stelle. Die frühere Regel "bewusst kein
+    Tippen" bezog sich auf Ziehen-überall-Versuche, die mit den Griffen
+    kollidierten; ein reiner Tipp bricht ab, sobald Scrollen oder ein
+    Griff-Drag erkannt wird. Im Ausschnitt-Modus verschiebt ein Tipp
+    außerhalb des Fensters das Fenster mittig auf die Tippstelle (sonst
+    würde die Dauerschleife sofort zurückspringen).
+  - Automatisches Folgen pausiert, sobald der Nutzer selbst scrollt
+    (`isScrollInProgress`, eigene Scrolls über ein Flag ausgenommen),
+    und setzt wieder ein, sobald der Positionsgriff wieder sichtbar ist
+    (Zurückscrollen, Wiedergabe holt auf, Tippen, Zoom).
+  - Solange der Griff außerhalb liegt und nicht gefolgt wird, zeigt ein
+    kleiner Pfeil am linken/rechten Rand die Richtung; Tippen darauf
+    scrollt zum Griff zurück.
+  - **Nicht verifiziert:** Ob Tippen auf einem Griff (der Tipp landet
+    dann auch auf der Leiste darunter) im Alltag stört – erwartbar
+    harmlos, da die Tippstelle dort ohnehin der Griffposition
+    entspricht.

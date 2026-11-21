@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
@@ -26,14 +27,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,10 +46,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.carstenkeller.videocutter.R
@@ -53,6 +59,7 @@ import com.carstenkeller.videocutter.extract.ExtractWindow
 import com.carstenkeller.videocutter.timeline.VideoClip
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val THUMBNAIL_EXTRACT_COUNT = 40
@@ -77,9 +84,10 @@ private const val FALLBACK_ASPECT_RATIO = 16f / 9f
  * Trimm-Griffen an den Rändern des gewählten Bereichs (Rest abgedunkelt)
  * und einem separaten ziehbaren Positionsstrich dazwischen - nachgebaut
  * nach der Standard-Trimm-Oberfläche der Android-Galerie (Nutzervorlage:
- * Screenrecording). Bewusst kein "an beliebiger Stelle tippen" mehr (das
- * war die Hauptursache für Gesten-Konflikte in früheren Versuchen) -
- * scrubben geht ausschließlich über den eigenen Positionsgriff.
+ * Screenrecording). Tippen auf die Leiste springt an diese Stelle
+ * (nur Tippen, kein Ziehen - Ziehen bleibt den Griffen und dem Scrollen
+ * vorbehalten, frühere Versuche mit "überall ziehen" führten zu
+ * Gesten-Konflikten).
  */
 @Composable
 fun TimelineView(
@@ -238,32 +246,66 @@ private fun ActiveClipTrimStrip(
     val playheadFraction = ((clip.trimStartUs + playheadPositionUs).toFloat() / clip.sourceDurationUs.toFloat())
         .coerceIn(0f, 1f)
 
-    // Beim Zoomen die aktuelle Wiedergabeposition im sichtbaren Bereich
-    // zentrieren, statt sie aus dem Blickfeld scrollen zu lassen.
-    LaunchedEffect(zoomLevel, viewportWidthPx) {
-        if (viewportWidthPx <= 0f) return@LaunchedEffect
-        val target = (playheadFraction * stripWidthPx - viewportWidthPx / 2f)
-            .roundToInt().coerceIn(0, scrollState.maxValue)
-        scrollState.scrollTo(target)
+    val latestPlayheadPx = rememberUpdatedState(playheadFraction * stripWidthPx)
+    val latestStripWidthPx = rememberUpdatedState(stripWidthPx)
+    val latestExtractWindow = rememberUpdatedState(extractWindow)
+    val latestOnSeek = rememberUpdatedState(onSeek)
+    val latestOnExtractWindowMove = rememberUpdatedState(onExtractWindowMove)
+    val coroutineScope = rememberCoroutineScope()
+
+    // Die Zeitleiste folgt der Wiedergabe nur, solange der Nutzer nicht
+    // selbst weggescrollt hat - sonst ließe sich während der Wiedergabe
+    // nicht scrollen (Nutzerfeedback). Eigene Scrolls (Folgen, Zoom,
+    // Pfeil) werden über programmaticScroll von Nutzer-Scrolls
+    // unterschieden, da isScrollInProgress bei beiden true ist.
+    var followPlayhead by remember { mutableStateOf(true) }
+    var programmaticScroll by remember { mutableStateOf(false) }
+
+    // -1 = Positionsgriff links außerhalb, 1 = rechts außerhalb, 0 = sichtbar.
+    // derivedStateOf, damit nicht jeder Scroll-Pixel den ganzen Streifen
+    // (bei hohem Zoom hunderte Kacheln) neu zusammensetzt.
+    val offscreenDirection by remember {
+        derivedStateOf {
+            val px = latestPlayheadPx.value
+            val visibleStart = scrollState.value.toFloat()
+            when {
+                viewportWidthPx <= 0f -> 0
+                px < visibleStart -> -1
+                px > visibleStart + viewportWidthPx -> 1
+                else -> 0
+            }
+        }
     }
 
-    // Während der Wiedergabe der Zeitleiste folgen, statt den
-    // Positionsgriff aus dem sichtbaren Bereich laufen zu lassen
-    // (Nutzerfeedback: "Nicht die Markierung in der Zeitleiste soll sich
-    // aus dem Bild bewegen, sondern die Zeitleiste bewegt sich fort").
-    // Nur wenn der Griff den sichtbaren Bereich tatsächlich verlässt (nicht
-    // bei jedem Positions-Tick neu zentrieren) - sonst ließe sich der
-    // Streifen im pausierten Zustand nicht mehr frei verschieben, um sich
-    // andere Stellen anzusehen.
-    LaunchedEffect(playheadFraction) {
-        if (viewportWidthPx <= 0f) return@LaunchedEffect
-        val playheadPx = playheadFraction * stripWidthPx
-        val visibleStart = scrollState.value.toFloat()
-        val visibleEnd = visibleStart + viewportWidthPx
-        if (playheadPx < visibleStart || playheadPx > visibleEnd) {
-            val target = (playheadPx - viewportWidthPx / 2f).roundToInt().coerceIn(0, scrollState.maxValue)
-            scrollState.animateScrollTo(target)
+    suspend fun scrollToPlayhead(animated: Boolean) {
+        val target = (latestPlayheadPx.value - viewportWidthPx / 2f).roundToInt().coerceIn(0, scrollState.maxValue)
+        programmaticScroll = true
+        try {
+            if (animated) scrollState.animateScrollTo(target) else scrollState.scrollTo(target)
+        } finally {
+            programmaticScroll = false
         }
+    }
+
+    LaunchedEffect(scrollState.isScrollInProgress) {
+        if (scrollState.isScrollInProgress && !programmaticScroll) followPlayhead = false
+    }
+
+    // Kommt der Griff wieder ins Bild (Nutzer scrollt zurück, Wiedergabe
+    // holt auf, Tippen auf die Leiste), folgt die Zeitleiste wieder.
+    LaunchedEffect(offscreenDirection) {
+        if (offscreenDirection == 0) followPlayhead = true
+    }
+
+    LaunchedEffect(offscreenDirection, followPlayhead) {
+        if (followPlayhead && offscreenDirection != 0) scrollToPlayhead(animated = true)
+    }
+
+    // Beim Zoomen die aktuelle Wiedergabeposition zentrieren.
+    LaunchedEffect(zoomLevel, viewportWidthPx) {
+        if (viewportWidthPx <= 0f) return@LaunchedEffect
+        followPlayhead = true
+        scrollToPlayhead(animated = false)
     }
 
     Column(Modifier.padding(vertical = 8.dp)) {
@@ -290,127 +332,183 @@ private fun ActiveClipTrimStrip(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(STRIP_HEIGHT_DP.dp)
-                .padding(top = 4.dp)
-                .onGloballyPositioned { viewportWidthPx = it.size.width.toFloat() }
-                .horizontalScroll(scrollState),
+                .padding(top = 4.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .width(with(density) { stripWidthPx.toDp() })
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .fillMaxSize()
+                    .onGloballyPositioned { viewportWidthPx = it.size.width.toFloat() }
+                    .horizontalScroll(scrollState),
             ) {
-                if (thumbnails.any { it != null }) {
-                    val tileWidthDp = with(density) { tileWidthPx.toDp() }
-                    Row(modifier = Modifier.fillMaxHeight()) {
-                        repeat(totalThumbnailSlots) { slot ->
-                            // Mehrere Kacheln können auf dasselbe extrahierte
-                            // Einzelbild zeigen (s. Kommentar oben); jede Kachel
-                            // hat eine feste, seitenverhältnis-treue Breite -
-                            // am rechten Rand kann dadurch eine letzte, nur
-                            // teilweise gefüllte Kachel entstehen (abgeschnitten
-                            // durch den Clip des äußeren Streifens), das ist
-                            // hier bewusst in Kauf genommen statt die Kacheln
-                            // wieder zu verzerren.
-                            val thumbnailIndex = (slot * thumbnails.size / totalThumbnailSlots).coerceIn(0, thumbnails.size - 1)
-                            val bitmap = thumbnails[thumbnailIndex]
-                            if (bitmap != null) {
-                                Image(
-                                    bitmap = bitmap,
-                                    contentDescription = null,
-                                    modifier = Modifier.width(tileWidthDp).fillMaxHeight(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            } else {
-                                Box(modifier = Modifier.width(tileWidthDp).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant))
+                Box(
+                    modifier = Modifier
+                        .width(with(density) { stripWidthPx.toDp() })
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        // Tippen springt im Video an diese Stelle. Kollidiert
+                        // nicht mit dem Scrollen (Wischen) oder den Griffen
+                        // (Ziehen): detectTapGestures bricht ab, sobald eine
+                        // Bewegung als Scroll/Drag erkannt wird.
+                        .pointerInput(Unit) {
+                            detectTapGestures { offset ->
+                                val currentClip = latestClip.value
+                                val width = latestStripWidthPx.value
+                                if (width <= 0f) return@detectTapGestures
+                                val tapUs = ((offset.x / width).coerceIn(0f, 1f) * currentClip.sourceDurationUs).toLong()
+                                val window = latestExtractWindow.value
+                                if (window != null && (tapUs < window.startUs || tapUs > window.startUs + window.durationUs)) {
+                                    // Im Ausschnitt-Modus außerhalb des Fensters
+                                    // getippt: Fenster dorthin verschieben (Mitte
+                                    // auf die Tippstelle), sonst würde die
+                                    // Dauerschleife sofort zurückspringen.
+                                    val maxStartUs = (currentClip.sourceDurationUs - window.durationUs).coerceAtLeast(0)
+                                    latestOnExtractWindowMove.value((tapUs - window.durationUs / 2).coerceIn(0, maxStartUs))
+                                } else {
+                                    latestOnSeek.value((tapUs - currentClip.trimStartUs).coerceIn(0, currentClip.durationUs))
+                                }
+                            }
+                        },
+                ) {
+                    if (thumbnails.any { it != null }) {
+                        val tileWidthDp = with(density) { tileWidthPx.toDp() }
+                        Row(modifier = Modifier.fillMaxHeight()) {
+                            repeat(totalThumbnailSlots) { slot ->
+                                // Mehrere Kacheln können auf dasselbe extrahierte
+                                // Einzelbild zeigen (s. Kommentar oben); jede Kachel
+                                // hat eine feste, seitenverhältnis-treue Breite -
+                                // am rechten Rand kann dadurch eine letzte, nur
+                                // teilweise gefüllte Kachel entstehen (abgeschnitten
+                                // durch den Clip des äußeren Streifens), das ist
+                                // hier bewusst in Kauf genommen statt die Kacheln
+                                // wieder zu verzerren.
+                                val thumbnailIndex = (slot * thumbnails.size / totalThumbnailSlots).coerceIn(0, thumbnails.size - 1)
+                                val bitmap = thumbnails[thumbnailIndex]
+                                if (bitmap != null) {
+                                    Image(
+                                        bitmap = bitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier.width(tileWidthDp).fillMaxHeight(),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                } else {
+                                    Box(modifier = Modifier.width(tileWidthDp).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant))
+                                }
                             }
                         }
                     }
-                }
 
-                if (trimStartFraction > 0f) {
-                    Box(
-                        Modifier
-                            .align(Alignment.CenterStart)
-                            .fillMaxHeight()
-                            .fillMaxWidth(trimStartFraction)
-                            .background(Color.Black.copy(alpha = 0.6f)),
-                    )
-                }
-                if (trimEndFraction < 1f) {
-                    Box(
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .fillMaxHeight()
-                            .fillMaxWidth(1f - trimEndFraction)
-                            .background(Color.Black.copy(alpha = 0.6f)),
-                    )
-                }
+                    if (trimStartFraction > 0f) {
+                        Box(
+                            Modifier
+                                .align(Alignment.CenterStart)
+                                .fillMaxHeight()
+                                .fillMaxWidth(trimStartFraction)
+                                .background(Color.Black.copy(alpha = 0.6f)),
+                        )
+                    }
+                    if (trimEndFraction < 1f) {
+                        Box(
+                            Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .fillMaxWidth(1f - trimEndFraction)
+                                .background(Color.Black.copy(alpha = 0.6f)),
+                        )
+                    }
 
-                // Positions-Griff: einzige Möglichkeit zu scrubben (bewusst
-                // kein "an beliebiger Stelle tippen" mehr).
-                StripHandle(
-                    xPx = (playheadFraction * stripWidthPx - playheadWidthPx / 2f)
-                        .coerceIn(0f, (stripWidthPx - playheadWidthPx).coerceAtLeast(0f)),
-                    widthDp = 4,
-                    color = Color.White,
-                    stripWidthPx = stripWidthPx,
-                    sourceDurationUs = clip.sourceDurationUs,
-                    getBaseUs = { clip.trimStartUs + playheadPositionUs },
-                    onNewUs = { newSourceUs ->
-                        val newPositionInClipUs = (newSourceUs - latestClip.value.trimStartUs)
-                            .coerceIn(0, latestClip.value.durationUs)
-                        onSeek(newPositionInClipUs)
-                    },
-                )
-
-                if (extractWindow == null) {
-                    // Trimm-Griffe an den Rändern des gewählten Bereichs. Auf
-                    // [0, stripWidthPx - handleWidthPx] begrenzt, damit der
-                    // Griff nie über den (geclippten) Streifenrand hinausragt
-                    // - sonst würde er im Ausgangszustand (kein Trimm) halb
-                    // unsichtbar abgeschnitten.
                     StripHandle(
-                        xPx = (trimStartFraction * stripWidthPx - handleWidthPx)
-                            .coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
-                        widthDp = HANDLE_WIDTH_DP,
-                        color = MaterialTheme.colorScheme.primary,
+                        xPx = (playheadFraction * stripWidthPx - playheadWidthPx / 2f)
+                            .coerceIn(0f, (stripWidthPx - playheadWidthPx).coerceAtLeast(0f)),
+                        widthDp = 4,
+                        color = Color.White,
                         stripWidthPx = stripWidthPx,
                         sourceDurationUs = clip.sourceDurationUs,
-                        getBaseUs = { clip.trimStartUs },
-                        onNewUs = { newStartUs -> onTrimChange(latestClip.value.id, newStartUs, latestClip.value.trimEndUs) },
+                        getBaseUs = { clip.trimStartUs + playheadPositionUs },
+                        onNewUs = { newSourceUs ->
+                            val newPositionInClipUs = (newSourceUs - latestClip.value.trimStartUs)
+                                .coerceIn(0, latestClip.value.durationUs)
+                            onSeek(newPositionInClipUs)
+                        },
                     )
-                    StripHandle(
-                        xPx = (trimEndFraction * stripWidthPx).coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
-                        widthDp = HANDLE_WIDTH_DP,
-                        color = MaterialTheme.colorScheme.primary,
-                        stripWidthPx = stripWidthPx,
-                        sourceDurationUs = clip.sourceDurationUs,
-                        getBaseUs = { clip.trimEndUs },
-                        onNewUs = { newEndUs -> onTrimChange(latestClip.value.id, latestClip.value.trimStartUs, newEndUs) },
-                    )
-                } else {
-                    // Schnellausschnitt-Fenster fester Länge: als Ganzes
-                    // ziehbar (nicht an einzelnen Rändern), da die Länge
-                    // bereits über die Längenauswahl feststeht - genau wie
-                    // vom Nutzer beschrieben ("Ausschnitt auf der Zeitleiste
-                    // verschieben").
-                    val windowFraction = extractWindow.durationUs.toFloat() / clip.sourceDurationUs.toFloat()
-                    val windowStartFraction = (extractWindow.startUs.toFloat() / clip.sourceDurationUs.toFloat())
-                        .coerceIn(0f, (1f - windowFraction).coerceAtLeast(0f))
-                    ExtractWindowHandle(
-                        xPx = windowStartFraction * stripWidthPx,
-                        widthPx = (windowFraction * stripWidthPx).coerceAtLeast(1f),
-                        stripWidthPx = stripWidthPx,
-                        sourceDurationUs = clip.sourceDurationUs,
-                        windowDurationUs = extractWindow.durationUs,
-                        getBaseStartUs = { extractWindow.startUs },
-                        onNewStartUs = onExtractWindowMove,
-                    )
+
+                    if (extractWindow == null) {
+                        // Trimm-Griffe an den Rändern des gewählten Bereichs. Auf
+                        // [0, stripWidthPx - handleWidthPx] begrenzt, damit der
+                        // Griff nie über den (geclippten) Streifenrand hinausragt
+                        // - sonst würde er im Ausgangszustand (kein Trimm) halb
+                        // unsichtbar abgeschnitten.
+                        StripHandle(
+                            xPx = (trimStartFraction * stripWidthPx - handleWidthPx)
+                                .coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
+                            widthDp = HANDLE_WIDTH_DP,
+                            color = MaterialTheme.colorScheme.primary,
+                            stripWidthPx = stripWidthPx,
+                            sourceDurationUs = clip.sourceDurationUs,
+                            getBaseUs = { clip.trimStartUs },
+                            onNewUs = { newStartUs -> onTrimChange(latestClip.value.id, newStartUs, latestClip.value.trimEndUs) },
+                        )
+                        StripHandle(
+                            xPx = (trimEndFraction * stripWidthPx).coerceIn(0f, (stripWidthPx - handleWidthPx).coerceAtLeast(0f)),
+                            widthDp = HANDLE_WIDTH_DP,
+                            color = MaterialTheme.colorScheme.primary,
+                            stripWidthPx = stripWidthPx,
+                            sourceDurationUs = clip.sourceDurationUs,
+                            getBaseUs = { clip.trimEndUs },
+                            onNewUs = { newEndUs -> onTrimChange(latestClip.value.id, latestClip.value.trimStartUs, newEndUs) },
+                        )
+                    } else {
+                        // Schnellausschnitt-Fenster fester Länge: als Ganzes
+                        // ziehbar (nicht an einzelnen Rändern), da die Länge
+                        // bereits über die Längenauswahl feststeht - genau wie
+                        // vom Nutzer beschrieben ("Ausschnitt auf der Zeitleiste
+                        // verschieben").
+                        val windowFraction = extractWindow.durationUs.toFloat() / clip.sourceDurationUs.toFloat()
+                        val windowStartFraction = (extractWindow.startUs.toFloat() / clip.sourceDurationUs.toFloat())
+                            .coerceIn(0f, (1f - windowFraction).coerceAtLeast(0f))
+                        ExtractWindowHandle(
+                            xPx = windowStartFraction * stripWidthPx,
+                            widthPx = (windowFraction * stripWidthPx).coerceAtLeast(1f),
+                            stripWidthPx = stripWidthPx,
+                            sourceDurationUs = clip.sourceDurationUs,
+                            windowDurationUs = extractWindow.durationUs,
+                            getBaseStartUs = { extractWindow.startUs },
+                            onNewStartUs = onExtractWindowMove,
+                        )
+                    }
+                }
+            }
+            if (!followPlayhead && offscreenDirection != 0) {
+                OffscreenPlayheadArrow(direction = offscreenDirection) {
+                    coroutineScope.launch {
+                        followPlayhead = true
+                        scrollToPlayhead(animated = true)
+                    }
                 }
             }
         }
+    }
+}
+
+/** Hinweis am Streifenrand, in welcher Richtung der Positionsgriff liegt; Tippen scrollt dorthin. */
+@Composable
+private fun BoxScope.OffscreenPlayheadArrow(direction: Int, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .align(if (direction < 0) Alignment.CenterStart else Alignment.CenterEnd)
+            .padding(horizontal = 2.dp)
+            .size(28.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(if (direction < 0) R.drawable.ic_chevron_left else R.drawable.ic_chevron_right),
+            contentDescription = "Zur Wiedergabeposition",
+            tint = Color.White,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

@@ -178,14 +178,16 @@ ihn als Release-Asset.
   dasselbe extrahierte Einzelbild) und damit auch die Scrollstrecke.
 - Der Filmstreifen ist niedrig (40dp), damit auf der Bildschirmbreite
   mehr (und damit unterscheidbarere) Kacheln Platz finden.
-- Ein eigener, ziehbarer Positionsstrich (weiß) scrubbt die Wiedergabe –
-  bewusst **kein** "an beliebiger Stelle tippen" mehr, das war in
-  früheren Versuchen die Hauptursache für Gesten-Konflikte. Jeder der
-  drei Griffe (zwei Trimm-Griffe, ein Positionsgriff) hat eine eigene,
-  klar getrennte Trefferfläche.
-- Verlässt der Positionsgriff bei laufender Wiedergabe (ab Zoom > 1x)
-  den sichtbaren Bereich, scrollt die Zeitleiste sanft nach, statt den
-  Griff aus dem Bild laufen zu lassen.
+- Ein eigener, ziehbarer Positionsstrich (weiß) scrubbt die Wiedergabe.
+  Zusätzlich springt **Tippen** auf die Leiste im Video an diese Stelle
+  (nur Tippen, kein Ziehen – Ziehen bleibt den Griffen und dem Scrollen
+  vorbehalten). Im Ausschnitt-Modus verschiebt Tippen außerhalb des
+  Fensters das Fenster mittig auf die Tippstelle.
+- Bei laufender Wiedergabe folgt die Zeitleiste dem Positionsgriff –
+  aber nur, bis du selbst scrollst. Dann bleibt die Leiste, wo du sie
+  hinschiebst, und am Rand zeigt ein kleiner Pfeil, in welcher Richtung
+  der Griff liegt (Tippen auf den Pfeil scrollt zurück). Sobald der
+  Griff wieder sichtbar ist, folgt die Leiste wieder.
 - Mehrere Clips (nach einem Schnitt) werden über eine einfache
   Auswahl-Reihe oberhalb des Trimm-Streifens gewechselt (Tippen +
   Verschieben-Pfeile, kein Ziehen) – diese Interaktion war bereits
