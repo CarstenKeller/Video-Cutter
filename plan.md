@@ -92,9 +92,45 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 > Unsicherheit" oben) und verdienen einen eigenen, sorgfältig getesteten
 > Durchlauf statt in einer großen Sammel-Änderung mitgezogen zu werden.
 
-- [ ] Technische Verifikation der Media3-Fähigkeiten (siehe oben)
-- [ ] Crossfade zwischen Clips
+> **Nutzerentscheidungen (2026-11-21):** Alle drei Übergangsarten
+> (Abblenden Schwarz/Weiß, Überblenden, Schieben/Wischen). Vorschau der
+> Übergänge ist Pflicht (nicht nur im Export). Projektweites Bildformat
+> mit wählbar Zuschneiden oder schwarzen Balken; frei einstellbarer
+> Bildausschnitt gilt für das ganze Projekt (nicht pro Clip).
+>
+> **Recherche-Ergebnis (Media3-Release-Notes und Quellcode 1.11.1):**
+> - Media3 hat keine eingebaute Übergangs-API; die Doku führt
+>   Überblenden ausdrücklich als nicht unterstützt
+>   ([androidx/media #1662](https://github.com/androidx/media/issues/1662)).
+>   Umsetzbar über mehrere überlappende `EditedMediaItemSequence`s plus
+>   `VideoCompositorSettings.getOverlaySettings(inputId,
+>   presentationTimeUs)`, das pro Bild Alpha (`setAlphaScale`) und
+>   Position liefern kann.
+> - Vorschau dafür braucht den `CompositionPlayer` (laut Release-Notes ab
+>   1.9.0 veröffentlicht, weiterhin `@ExperimentalApi`), bei mehreren
+>   Spuren mit `MultipleInputVideoGraph.Factory`.
+> - Neueste stabile Version: 1.11.1 (2026-09-10). Projekt war auf 1.5.1.
+> - Bekanntes Risiko: Media3-Bugreport, dass Übergänge den
+>   CompositionPlayer verlangsamen und Exporte scheitern
+>   ([androidx/media #3435](https://github.com/androidx/media/issues/3435)).
+>
+> **Vorgehen in einzeln auf dem Gerät testbaren Stufen** (statt eines
+> großen Umbaus, der sich hier nicht testen lässt):
+> 1. Media3 1.5.1 → 1.11.1, ohne Verhaltensänderung.
+> 2. Vorschau von ExoPlayer-Playlist auf `CompositionPlayer` umstellen
+>    (gleiche Composition für Vorschau und Export, damit beide exakt
+>    gleich aussehen). Positionsanzeige/Sprünge/Schnitt/Loop-Logik
+>    müssen dabei neu auf "verstrichene Zeit" statt Clip-Index
+>    umgestellt werden.
+> 3. Bildformat + Ausschnitt (projektweit) als Composition-Effekte.
+> 4. Übergänge: zuerst Abblenden, dann Überblenden, dann Schieben.
+
+- [x] Technische Verifikation der Media3-Fähigkeiten (siehe oben)
+- [ ] Stufe 1: Media3-Update auf 1.11.1
+- [ ] Stufe 2: Vorschau auf CompositionPlayer
+- [ ] Stufe 3: Bildformat + Ausschnitt
 - [ ] Fade to Black/White
+- [ ] Crossfade zwischen Clips
 - [ ] Slide/Wipe
 - [ ] Übergangsdauer einstellbar pro Übergang
 

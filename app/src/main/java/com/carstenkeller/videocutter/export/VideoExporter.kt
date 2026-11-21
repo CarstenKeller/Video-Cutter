@@ -42,7 +42,7 @@ class VideoExporter(private val context: Context) {
         onError: (Throwable) -> Unit,
     ): Transformer {
         val editedItems = clips.map { it.toEditedMediaItem(resolution) }
-        val sequence = EditedMediaItemSequence(editedItems)
+        val sequence = EditedMediaItemSequence.withAudioAndVideoFrom(editedItems)
         val composition = Composition.Builder(listOf(sequence)).build()
 
         val transformerBuilder = Transformer.Builder(context)

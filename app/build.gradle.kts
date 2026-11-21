@@ -81,11 +81,11 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
 
     // Media3: ExoPlayer für die Vorschau, Transformer für den Export.
-    implementation("androidx.media3:media3-exoplayer:1.5.1")
-    implementation("androidx.media3:media3-ui:1.5.1")
-    implementation("androidx.media3:media3-transformer:1.5.1")
-    implementation("androidx.media3:media3-common:1.5.1")
-    implementation("androidx.media3:media3-effect:1.5.1")
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-ui:1.11.1")
+    implementation("androidx.media3:media3-transformer:1.11.1")
+    implementation("androidx.media3:media3-common:1.11.1")
+    implementation("androidx.media3:media3-effect:1.11.1")
 
     // CameraX: Kamera-Aufnahme (Phase 7).
     implementation("androidx.camera:camera-core:1.4.1")
