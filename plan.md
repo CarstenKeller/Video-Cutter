@@ -710,3 +710,15 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   stört, muss der Nutzer beurteilen. Mögliche nächste Schritte, falls
   es weiterhin nicht reicht: eigene Palette pro Frame (lokale
   Farbtabelle statt einer globalen aus drei Stichproben).
+- **GIF-Bildrate 10 → 20 fps** (Nutzerfeedback: "fps ist zu wenig. Das
+  wirkt wie Zeitraffer"). Die Abspieldauer war rechnerisch korrekt
+  (10 fps × 10 cs), der Eindruck kam vom Ruckeln bei 30-fps-Quellen.
+  Die Bildrate wird jetzt aus der Anzeigedauer in Hundertstelsekunden
+  abgeleitet (5 cs = exakt 20 fps), statt umgekehrt, damit keine
+  Rundung die Geschwindigkeit verfälscht. Kosten: Dateigröße und
+  Exportdauer verdoppeln sich ungefähr (bei 480px Breite und 16:9 grob
+  geschätzt ~14 MB für 5s, ~29 MB für 10s, da dieser Encoder ohne
+  echtes LZW rund 9 Bit pro Pixel schreibt). **Nicht verifiziert** auf
+  dem Gerät. Falls die Größe stört: echte LZW-Kompression würde sie
+  deutlich senken, ist aber das riskanteste Stück des Encoders (siehe
+  früherer GIF-Encoder-Bug).

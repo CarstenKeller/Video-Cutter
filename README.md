@@ -111,7 +111,7 @@ ihn als Release-Asset.
   (keine echte LZW-Kompression – siehe `extract/GifEncoder.kt` für die
   Begründung), aber mit echter Median-Cut-Farbpalette statt einer festen
   Farbaufteilung (siehe `extract/MedianCutPalette.kt`) und
-  Floyd-Steinberg-Dithering gegen harte Farbstufen, 10 fps und 480px
+  Floyd-Steinberg-Dithering gegen harte Farbstufen, 20 fps und 480px
   maximaler Breite
 - **Bug behoben:** GIFs zeigten nur ein bis zwei verschiedene Bilder.
   Ursache: Frames wurden mit `OPTION_CLOSEST_SYNC` gelesen, das zum

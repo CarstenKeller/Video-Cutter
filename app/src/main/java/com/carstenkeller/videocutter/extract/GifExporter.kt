@@ -102,8 +102,13 @@ class GifExporter(private val context: Context) {
     }
 
     companion object {
-        private const val FPS = 10.0
-        private const val CENTISECONDS_PER_FRAME = (100.0 / FPS).toInt()
+        // GIF speichert die Anzeigedauer pro Bild in Hundertstelsekunden;
+        // die Bildrate wird daraus abgeleitet (nicht umgekehrt), damit sie
+        // exakt aufgeht - bei z. B. 12 fps würde 100/12 auf 8 abgerundet
+        // und das GIF liefe 4 % zu schnell. 5 cs = 20 fps (vorher 10 fps
+        // wirkte bei 30-fps-Quellen ruckelig "wie Zeitraffer").
+        private const val CENTISECONDS_PER_FRAME = 5
+        private const val FPS = 100.0 / CENTISECONDS_PER_FRAME
         private const val MAX_WIDTH = 480
         private const val PALETTE_SAMPLES_PER_FRAME = 5000
     }
