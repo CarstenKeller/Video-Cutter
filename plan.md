@@ -698,3 +698,15 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
     dann auch auf der Leiste darunter) im Alltag stört – erwartbar
     harmlos, da die Tippstelle dort ohnehin der Griffposition
     entspricht.
+- **Floyd-Steinberg-Dithering für GIFs** (Nutzerfeedback: "Die geringe
+  Farbtiefe der gifs sorgt dafür, dass das gif pixelig ist"). GIF ist
+  vom Format her auf 256 Farben pro Bild begrenzt; das lässt sich nicht
+  umgehen. Dithering verteilt den Rundungsfehler jedes Pixels auf die
+  Nachbarn und ersetzt harte Farbstufen durch feine Mischmuster. Bei
+  diesem Encoder (fest 9 Bit pro Pixel) ändert das die Dateigröße
+  nicht. **Nicht verifiziert:** Error-Diffusion-Dithering erzeugt von
+  Bild zu Bild leicht wechselnde Muster, die in ruhigen Flächen als
+  "Rauschen/Flimmern" sichtbar werden können - ob das auf dem Gerät
+  stört, muss der Nutzer beurteilen. Mögliche nächste Schritte, falls
+  es weiterhin nicht reicht: eigene Palette pro Frame (lokale
+  Farbtabelle statt einer globalen aus drei Stichproben).

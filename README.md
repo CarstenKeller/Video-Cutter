@@ -110,8 +110,9 @@ ihn als Release-Asset.
   nutzt einen selbst geschriebenen, bewusst vereinfachten GIF89a-Encoder
   (keine echte LZW-Kompression – siehe `extract/GifEncoder.kt` für die
   Begründung), aber mit echter Median-Cut-Farbpalette statt einer festen
-  Farbaufteilung (siehe `extract/MedianCutPalette.kt`), 10 fps und
-  480px maximaler Breite
+  Farbaufteilung (siehe `extract/MedianCutPalette.kt`) und
+  Floyd-Steinberg-Dithering gegen harte Farbstufen, 10 fps und 480px
+  maximaler Breite
 - **Bug behoben:** GIFs zeigten nur ein bis zwei verschiedene Bilder.
   Ursache: Frames wurden mit `OPTION_CLOSEST_SYNC` gelesen, das zum
   nächsten Keyframe springt (bei Handy-Videos meist nur alle 1–2s).

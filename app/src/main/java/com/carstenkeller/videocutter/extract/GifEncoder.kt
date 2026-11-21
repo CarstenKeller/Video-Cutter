@@ -2,6 +2,7 @@ package com.carstenkeller.videocutter.extract
 
 import android.graphics.Bitmap
 import java.io.OutputStream
+import kotlin.math.roundToInt
 
 /**
  * Minimaler, bewusst vereinfachter GIF89a-Encoder für kurze Video-Ausschnitte.
@@ -32,6 +33,8 @@ import java.io.OutputStream
  * Encoder von außen als [palette] übergeben (siehe [MedianCutPalette]) -
  * eine feste, vom Bildinhalt unabhängige Farbaufteilung führte bei normalen
  * Videos zu sichtbarem Banding (Nutzerfeedback: "wenige Farben").
+ * Zusätzlich Floyd-Steinberg-Dithering beim Zuordnen der Pixel, da auch
+ * eine gut gewählte 256-Farben-Palette harte Farbstufen erzeugt.
  *
  * Alle Byte-Layouts (Header, Logical Screen Descriptor, Graphic Control
  * Extension, Image Descriptor, NETSCAPE2.0-Loop-Extension) folgen exakt der
@@ -125,17 +128,52 @@ class GifEncoder(
         packer.writeCode(CLEAR_CODE, CODE_BITS)
         val pixels = IntArray(width * height)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        // Floyd-Steinberg-Dithering: GIF erlaubt nur 256 Farben pro Bild,
+        // ohne Dithering entstehen harte Farbstufen (Nutzerfeedback: "die
+        // geringe Farbtiefe sorgt dafür, dass das gif pixelig ist"). Der
+        // Rundungsfehler jedes Pixels wird auf die noch nicht verarbeiteten
+        // Nachbarn verteilt (7/16 rechts, 3/16 links unten, 5/16 unten,
+        // 1/16 rechts unten). Fehlerpuffer sind 2 breiter, damit die
+        // Ränder ohne Sonderfälle auskommen (Index x+1 = Pixel x).
+        var currentRowError = Array(3) { FloatArray(width + 2) }
+        var nextRowError = Array(3) { FloatArray(width + 2) }
+
         var codesSinceClear = 0
-        for (pixel in pixels) {
-            if (codesSinceClear >= MAX_CODES_BEFORE_CLEAR) {
-                packer.writeCode(CLEAR_CODE, CODE_BITS)
-                codesSinceClear = 0
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val pixel = pixels[y * width + x]
+                val r = (((pixel shr 16) and 0xFF) + currentRowError[0][x + 1]).roundToInt().coerceIn(0, 255)
+                val g = (((pixel shr 8) and 0xFF) + currentRowError[1][x + 1]).roundToInt().coerceIn(0, 255)
+                val b = ((pixel and 0xFF) + currentRowError[2][x + 1]).roundToInt().coerceIn(0, 255)
+
+                val index = palette.indexOf((r shl 16) or (g shl 8) or b)
+                val chosen = palette.colors[index]
+                diffuseError(currentRowError[0], nextRowError[0], x, (r - ((chosen shr 16) and 0xFF)).toFloat())
+                diffuseError(currentRowError[1], nextRowError[1], x, (g - ((chosen shr 8) and 0xFF)).toFloat())
+                diffuseError(currentRowError[2], nextRowError[2], x, (b - (chosen and 0xFF)).toFloat())
+
+                if (codesSinceClear >= MAX_CODES_BEFORE_CLEAR) {
+                    packer.writeCode(CLEAR_CODE, CODE_BITS)
+                    codesSinceClear = 0
+                }
+                packer.writeCode(index, CODE_BITS)
+                codesSinceClear++
             }
-            packer.writeCode(palette.indexOf(pixel), CODE_BITS)
-            codesSinceClear++
+            val finishedRow = currentRowError
+            currentRowError = nextRowError
+            nextRowError = finishedRow
+            for (channel in 0 until 3) nextRowError[channel].fill(0f)
         }
         packer.writeCode(END_CODE, CODE_BITS)
         packer.flush()
+    }
+
+    private fun diffuseError(currentRow: FloatArray, nextRow: FloatArray, x: Int, error: Float) {
+        currentRow[x + 2] += error * 7f / 16f
+        nextRow[x] += error * 3f / 16f
+        nextRow[x + 1] += error * 5f / 16f
+        nextRow[x + 2] += error * 1f / 16f
     }
 
     private fun writeLeShort(value: Int) {
