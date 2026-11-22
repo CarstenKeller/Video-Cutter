@@ -138,13 +138,39 @@ fun TimelineView(
             ActiveClipTrimStrip(
                 clip = activeClip,
                 playheadPositionUs = playheadPositionUs,
-                onSeek = { positionInClipUs -> onSeek(playheadClipIndex, positionInClipUs) },
+                onSeekSource = { sourceUs -> seekToSourcePosition(clips, playheadClipIndex, sourceUs, onSeek) },
                 onTrimChange = onTrimChange,
                 extractWindow = extractWindow,
                 onExtractWindowMove = onExtractWindowMove,
             )
         }
     }
+}
+
+/**
+ * Nach einem Schnitt zeigen alle Teile derselben Quelldatei denselben
+ * Filmstreifen. Eine getippte/gezogene Stelle wird deshalb dem Clip
+ * zugeordnet, der sie tatsächlich enthält (bevorzugt der aktive), statt sie
+ * auf den aktiven Clip zu begrenzen - sonst landete z. B. ein Tipp hinter
+ * der Schnittstelle am Ende von Clip 1 statt an der getippten Stelle.
+ */
+private fun seekToSourcePosition(
+    clips: List<VideoClip>,
+    activeIndex: Int,
+    sourceUs: Long,
+    onSeek: (clipIndex: Int, positionInClipUs: Long) -> Unit,
+) {
+    val active = clips.getOrNull(activeIndex) ?: return
+    val targetIndex = if (sourceUs in active.trimStartUs..active.trimEndUs) {
+        activeIndex
+    } else {
+        clips.indices.firstOrNull { i ->
+            val candidate = clips[i]
+            candidate.sourceUri == active.sourceUri && sourceUs >= candidate.trimStartUs && sourceUs < candidate.trimEndUs
+        } ?: activeIndex
+    }
+    val target = clips[targetIndex]
+    onSeek(targetIndex, (sourceUs - target.trimStartUs).coerceIn(0, target.durationUs))
 }
 
 private fun formatTimeMs(ms: Long): String {
@@ -204,14 +230,16 @@ private fun ClipChip(
 private fun ActiveClipTrimStrip(
     clip: VideoClip,
     playheadPositionUs: Long,
-    onSeek: (positionInClipUs: Long) -> Unit,
+    onSeekSource: (sourceUs: Long) -> Unit,
     onTrimChange: (clipId: String, trimStartUs: Long, trimEndUs: Long) -> Unit,
     extractWindow: ExtractWindow?,
     onExtractWindowMove: (newStartUs: Long) -> Unit,
 ) {
     val latestClip = rememberUpdatedState(clip)
     var viewportWidthPx by remember { mutableStateOf(0f) }
-    var zoomLevel by remember(clip.id) { mutableStateOf(1f) }
+    // Bewusst nicht pro Clip gemerkt: sonst sprang der Zoom beim Übergang
+    // in den nächsten Clip auf 1x zurück (Nutzerfeedback).
+    var zoomLevel by remember { mutableStateOf(1f) }
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
     val handleWidthPx = with(density) { HANDLE_WIDTH_DP.dp.toPx() }
@@ -249,7 +277,7 @@ private fun ActiveClipTrimStrip(
     val latestPlayheadPx = rememberUpdatedState(playheadFraction * stripWidthPx)
     val latestStripWidthPx = rememberUpdatedState(stripWidthPx)
     val latestExtractWindow = rememberUpdatedState(extractWindow)
-    val latestOnSeek = rememberUpdatedState(onSeek)
+    val latestOnSeekSource = rememberUpdatedState(onSeekSource)
     val latestOnExtractWindowMove = rememberUpdatedState(onExtractWindowMove)
     val coroutineScope = rememberCoroutineScope()
 
@@ -365,7 +393,7 @@ private fun ActiveClipTrimStrip(
                                     val maxStartUs = (currentClip.sourceDurationUs - window.durationUs).coerceAtLeast(0)
                                     latestOnExtractWindowMove.value((tapUs - window.durationUs / 2).coerceIn(0, maxStartUs))
                                 } else {
-                                    latestOnSeek.value((tapUs - currentClip.trimStartUs).coerceIn(0, currentClip.durationUs))
+                                    latestOnSeekSource.value(tapUs)
                                 }
                             }
                         },
@@ -425,11 +453,7 @@ private fun ActiveClipTrimStrip(
                         stripWidthPx = stripWidthPx,
                         sourceDurationUs = clip.sourceDurationUs,
                         getBaseUs = { clip.trimStartUs + playheadPositionUs },
-                        onNewUs = { newSourceUs ->
-                            val newPositionInClipUs = (newSourceUs - latestClip.value.trimStartUs)
-                                .coerceIn(0, latestClip.value.durationUs)
-                            onSeek(newPositionInClipUs)
-                        },
+                        onNewUs = { newSourceUs -> latestOnSeekSource.value(newSourceUs.coerceIn(0, latestClip.value.sourceDurationUs)) },
                     )
 
                     if (extractWindow == null) {
@@ -624,7 +648,7 @@ private fun BoxScope.ExtractWindowHandle(
 @Composable
 private fun rememberFullSourceThumbnails(clip: VideoClip, count: Int): List<ImageBitmap?> {
     val context = LocalContext.current
-    val state = produceState(initialValue = List<ImageBitmap?>(count) { null }, clip.id, count) {
+    val state = produceState(initialValue = List<ImageBitmap?>(count) { null }, clip.sourceUri, count) {
         value = withContext(Dispatchers.IO) {
             extractThumbnails(context, clip.sourceUri, clip.sourceDurationUs, count)
         }

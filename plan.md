@@ -771,3 +771,17 @@ _Wird laufend aktualisiert, sobald Punkte umgesetzt sind._
   dem Gerät. Falls die Größe stört: echte LZW-Kompression würde sie
   deutlich senken, ist aber das riskanteste Stück des Encoders (siehe
   früherer GIF-Encoder-Bug).
+- **Leiste nach Stufe 2 (Nutzerfeedback: "Ich kann nicht mehr jederzeit
+  eine Position in der Leiste markieren. Im Überlauf von Clip 1 zu 2
+  springt der zoom zurück"):**
+  - Zoom wurde pro Clip gemerkt (`remember(clip.id)`) und startete beim
+    Wechsel in den nächsten Clip bei 1x. Jetzt eine Zoomstufe für die
+    ganze Leiste.
+  - Vermutete Ursache für das Markieren (**Annahme, nicht bestätigt**):
+    nach einem Schnitt zeigt die Leiste die ganze Quelldatei; ein Tipp
+    in den abgedunkelten Teil, der zum anderen Clip gehört, wurde auf
+    den aktiven Clip begrenzt (landete z. B. am Ende von Clip 1). Jetzt
+    springen Tippen und Ziehen in den Clip derselben Quelldatei, der die
+    Stelle tatsächlich enthält (`seekToSourcePosition`).
+  - Vorschaubilder hängen an der Quelldatei statt an der Clip-Id - beim
+    Wechsel zwischen Teilen derselben Datei laden sie nicht mehr neu.
