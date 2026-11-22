@@ -22,9 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.media3.common.MediaItem
+import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.transformer.CompositionPlayer
 import com.carstenkeller.videocutter.export.ExportUiState
 import com.carstenkeller.videocutter.export.ExportViewModel
 import com.carstenkeller.videocutter.extract.ExtractDurationPreset
@@ -33,6 +33,10 @@ import com.carstenkeller.videocutter.extract.ExtractUiState
 import com.carstenkeller.videocutter.extract.ExtractViewModel
 import com.carstenkeller.videocutter.extract.ExtractWindow
 import com.carstenkeller.videocutter.timeline.TimelineViewModel
+import com.carstenkeller.videocutter.timeline.VideoClip
+import com.carstenkeller.videocutter.timeline.buildComposition
+import com.carstenkeller.videocutter.timeline.clipPositionAt
+import com.carstenkeller.videocutter.timeline.elapsedUsAt
 import com.carstenkeller.videocutter.ui.components.ExportDialog
 import com.carstenkeller.videocutter.ui.components.ExportProgressOverlay
 import com.carstenkeller.videocutter.ui.components.ExtractControls
@@ -45,7 +49,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, ExperimentalApi::class)
 @Composable
 fun EditorScreen(
     timelineViewModel: TimelineViewModel,
@@ -58,58 +62,35 @@ fun EditorScreen(
     val extractViewModel: ExtractViewModel = viewModel()
     val extractState by extractViewModel.uiState.collectAsState()
 
-    val player = remember { ExoPlayer.Builder(context).build() }
+    // CompositionPlayer statt ExoPlayer-Playlist: spielt dieselbe Composition,
+    // die auch exportiert wird (Voraussetzung für Übergänge und Bildformat in
+    // der Vorschau). Er stellt die ganze Composition als *ein* Element dar -
+    // Clip-Index und Position im Clip werden deshalb über clipPositionAt()
+    // aus der durchgehenden Position berechnet, bezogen auf loadedClips (die
+    // Clips, die der Player gerade tatsächlich geladen hat).
+    val player = remember { CompositionPlayer.Builder(context).build() }
     DisposableEffect(Unit) {
         onDispose { player.release() }
     }
+    var loadedClips by remember { mutableStateOf(emptyList<VideoClip>()) }
 
     // Debounced statt bei jedem einzelnen Trimm-Griff-Tick: sonst baut jede
-    // Fingerbewegung auf der Zeitleiste die komplette Playlist neu auf
-    // (setMediaItems + prepare), was die App spürbar träge macht.
+    // Fingerbewegung auf der Zeitleiste die komplette Composition neu auf,
+    // was die App spürbar träge macht.
     LaunchedEffect(timelineViewModel) {
         var pendingRebuild: Job? = null
-        var loadedClips = timelineViewModel.state.value.clips
         timelineViewModel.state.collect { current ->
             pendingRebuild?.cancel()
             pendingRebuild = launch {
                 delay(250)
                 if (current.clips.isEmpty()) return@launch
 
-                // setMediaItems(List) allein würde die Wiedergabe immer auf den
-                // Projektanfang zurücksetzen. Stattdessen: aktuelle Position als
-                // "verstrichene Zeit seit Projektanfang" (bezogen auf die noch
-                // geladene Clip-Liste) sichern und nach dem Neuaufbau an der
-                // äquivalenten Stelle im neuen Clip-Satz fortsetzen - sonst würde
-                // z. B. jeder Trimm-Zug die Vorschau an den Anfang zurückspringen
-                // lassen.
-                val elapsedBeforeUs = loadedClips.take(player.currentMediaItemIndex).sumOf { it.durationUs } +
-                    player.currentPosition * 1000
-
-                val mediaItems = current.clips.map { clip ->
-                    MediaItem.Builder()
-                        .setUri(clip.sourceUri)
-                        .setClippingConfiguration(
-                            MediaItem.ClippingConfiguration.Builder()
-                                .setStartPositionMs(clip.trimStartUs / 1000)
-                                .setEndPositionMs(clip.trimEndUs / 1000)
-                                .build(),
-                        )
-                        .build()
-                }
-
-                var remainingUs = elapsedBeforeUs
-                var targetIndex = 0
-                for (i in current.clips.indices) {
-                    val duration = current.clips[i].durationUs
-                    if (i == current.clips.lastIndex || remainingUs < duration) {
-                        targetIndex = i
-                        break
-                    }
-                    remainingUs -= duration
-                }
-                val targetPositionMs = remainingUs.coerceIn(0, current.clips[targetIndex].durationUs) / 1000
-
-                player.setMediaItems(mediaItems, targetIndex, targetPositionMs)
+                // Die durchgehende Position bleibt über den Neuaufbau erhalten,
+                // sonst würde z. B. jeder Trimm-Zug an den Anfang springen.
+                val totalUs = current.clips.sumOf { it.durationUs }
+                val targetMs = (player.currentPosition * 1000).coerceIn(0, totalUs) / 1000
+                player.setComposition(buildComposition(current.clips), targetMs)
+                // Unschädlich, wenn schon vorbereitet; nach einem Fehler nötig.
                 player.prepare()
                 loadedClips = current.clips
             }
@@ -137,26 +118,28 @@ fun EditorScreen(
     // aktuellen Wert.
     val latestExtractDurationUs = rememberUpdatedState(extractDurationUs)
 
-    // Playhead-Position fürs Timeline-Lineal: ExoPlayer liefert keinen
+    // Playhead-Position fürs Timeline-Lineal: der Player liefert keinen
     // Compose-State für currentPosition, daher wird hier regelmäßig abgefragt
     // (reicht für eine Positionsanzeige, muss nicht jeden Frame aktuell sein).
     var playheadClipIndex by remember { mutableStateOf(0) }
     var playheadPositionUs by remember { mutableStateOf(0L) }
     LaunchedEffect(player) {
         while (true) {
-            playheadClipIndex = player.currentMediaItemIndex
-            playheadPositionUs = player.currentPosition * 1000
+            val position = clipPositionAt(loadedClips, player.currentPosition * 1000)
+            playheadClipIndex = position.clipIndex
+            playheadPositionUs = position.positionInClipUs
 
             // Im Ausschnitt-Modus nur das gewählte Fenster in Dauerschleife
             // abspielen: sobald die Wiedergabe das Fenster verlässt, zurück
             // an den Fensteranfang springen.
             if (extractModeActive) {
-                val clip = state.clips.getOrNull(playheadClipIndex)
+                val clip = loadedClips.getOrNull(playheadClipIndex)
                 if (clip != null) {
                     val absoluteUs = clip.trimStartUs + playheadPositionUs
                     val windowEndUs = extractWindowStartUs + latestExtractDurationUs.value
                     if (absoluteUs < extractWindowStartUs || absoluteUs >= windowEndUs) {
-                        player.seekTo(playheadClipIndex, (extractWindowStartUs - clip.trimStartUs) / 1000)
+                        val windowStartInClipUs = extractWindowStartUs - clip.trimStartUs
+                        player.seekTo(elapsedUsAt(loadedClips, playheadClipIndex, windowStartInClipUs) / 1000)
                     }
                 }
             }
@@ -182,9 +165,9 @@ fun EditorScreen(
                 TimelineToolbar(
                     exportEnabled = state.clips.isNotEmpty() && exportState !is ExportUiState.Exporting,
                     onSplit = {
-                        val index = player.currentMediaItemIndex
-                        val clip = state.clips.getOrNull(index)
-                        if (clip != null) timelineViewModel.splitClip(clip.id, player.currentPosition * 1000)
+                        val position = clipPositionAt(loadedClips, player.currentPosition * 1000)
+                        val clip = loadedClips.getOrNull(position.clipIndex)
+                        if (clip != null) timelineViewModel.splitClip(clip.id, position.positionInClipUs)
                     },
                     onDelete = {
                         state.clips.getOrNull(playheadClipIndex)?.let { timelineViewModel.deleteClip(it.id) }
@@ -265,7 +248,7 @@ fun EditorScreen(
                     clips = state.clips,
                     playheadClipIndex = playheadClipIndex,
                     playheadPositionUs = playheadPositionUs,
-                    onSeek = { index, positionInClipUs -> player.seekTo(index, positionInClipUs / 1000) },
+                    onSeek = { index, positionInClipUs -> player.seekTo(elapsedUsAt(loadedClips, index, positionInClipUs) / 1000) },
                     onTrimChange = timelineViewModel::updateTrim,
                     onMoveClip = timelineViewModel::moveClip,
                     extractWindow = if (extractModeActive) ExtractWindow(extractWindowStartUs, extractDurationUs) else null,

@@ -126,8 +126,21 @@ als Verbesserung nachgezogen werden, falls gewünscht.
 > 4. Übergänge: zuerst Abblenden, dann Überblenden, dann Schieben.
 
 - [x] Technische Verifikation der Media3-Fähigkeiten (siehe oben)
-- [ ] Stufe 1: Media3-Update auf 1.11.1
-- [ ] Stufe 2: Vorschau auf CompositionPlayer
+- [x] Stufe 1: Media3-Update auf 1.11.1 (Nutzer: läuft auf dem Gerät)
+- [ ] Stufe 2: Vorschau auf CompositionPlayer - umgesetzt, **nicht
+  verifiziert**. Vorschau und Export bauen ihre Composition jetzt über
+  dieselbe Funktion `buildComposition` (`timeline/ClipComposition.kt`).
+  Der CompositionPlayer stellt die ganze Composition als *ein* Element
+  dar (geprüft im Quellcode 1.11.1); Clip-Index/Position im Clip werden
+  deshalb über `clipPositionAt`/`elapsedUsAt` aus der durchgehenden
+  Position berechnet (Positionsanzeige, Tippen/Ziehen in der Leiste,
+  Schneiden, Ausschnitt-Dauerschleife). Laut Quellcode: `durationUs`
+  muss die Dauer der ganzen Quelldatei sein (sonst Absturz),
+  `setComposition(composition, startMs)` erhält die Position beim
+  Neuaufbau, `prepare()` ist nach erneutem `setComposition` unschädlich,
+  Bildausgabe nur über SurfaceView/SurfaceHolder (PlayerView nutzt
+  standardmäßig SurfaceView). Offen: Reaktionsgeschwindigkeit beim
+  Scrubben/Neuaufbau auf dem Gerät.
 - [ ] Stufe 3: Bildformat + Ausschnitt
 - [ ] Fade to Black/White
 - [ ] Crossfade zwischen Clips

@@ -66,7 +66,7 @@ ihn als Release-Asset.
 ## Aktueller Funktionsstand (Phase 1 / MVP)
 
 - Video über den System-Picker importieren
-- Vorschau mit ExoPlayer
+- Vorschau mit dem Media3-`CompositionPlayer` (dieselbe Composition wie beim Export, damit Vorschau und Ergebnis übereinstimmen)
 - Mehrere Clips in einer Spur, Reihenfolge per Pfeiltasten ändern
 - Trimmen über Schieberegler, Schneiden am aktuellen Wiedergabepunkt,
   Clip löschen
